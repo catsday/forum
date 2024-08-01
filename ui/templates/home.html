@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>forum</title>
+    <title>Forum</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
@@ -21,8 +21,31 @@
     </header>
     <main>
         <div class="container">
-            <h2>Latest posts</h2>
-            <p>There's nothing to see here yet!</p>
+            <h2>Latest Posts</h2>
+            {{if .Posts}}
+            <div class="table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Created</th>
+                            <th>ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Posts}}
+                        <tr>
+                            <td><a href='/forum/view?id={{.ID}}'>{{.Title}}</a></td>
+                            <td>{{.Created.Format "02 Jan 2006 15:04"}}</td>
+                            <td>#{{.ID}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+            {{else}}
+            <p>There's nothing to see here... yet!</p>
+            {{end}}
         </div>
     </main>
     <footer>
