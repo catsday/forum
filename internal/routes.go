@@ -20,7 +20,13 @@ func Router(db *sql.DB) *http.ServeMux {
 	mux.HandleFunc("/forum/view", func(w http.ResponseWriter, r *http.Request) {
 		PostView(w, r, postModel)
 	})
-	mux.HandleFunc("/forum/create", PostCreate)
+	mux.HandleFunc("/forum/create", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			PostCreateForm(w, r)
+		} else {
+			PostCreate(w, r, postModel)
+		}
+	})
 
 	return mux
 }

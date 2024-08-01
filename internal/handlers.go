@@ -75,11 +75,45 @@ func PostView(w http.ResponseWriter, r *http.Request, postModel *models.PostMode
 	}
 }
 
-func PostCreate(w http.ResponseWriter, r *http.Request) {
+func PostCreateForm(w http.ResponseWriter, r *http.Request) {
+	files := []string{
+		"./ui/templates/create.html",
+	}
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("Error parsing template files: %v", err)
+		return
+	}
+
+	err = ts.Execute(w, nil)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("Error executing template: %v", err)
+	}
+}
+
+func PostCreate(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Write([]byte("Create a new snippet..."))
+
+	title := r.FormValue("title")
+	content := r.FormValue("content")
+
+	if title == "" || content == "" {
+		http.Error(w, "Title and Content cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	_, err := postModel.Insert(title, content)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("Error creating new post: %v", err)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

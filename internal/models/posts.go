@@ -17,7 +17,7 @@ type PostModel struct {
 	DB *sql.DB
 }
 
-func (m *PostModel) Insert(title string, content string, expires int) (int, error) {
+func (m *PostModel) Insert(title string, content string) (int, error) {
 	stmt := `INSERT INTO posts (title, content, created)
     VALUES(?, ?, datetime('now', 'utc'))`
 
