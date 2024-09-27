@@ -7,51 +7,60 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <div id="branding">
-                <h1><a href="/">Forum</a></h1>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="/">Home</a></li>
-                </ul>
-            </nav>
+<header>
+    <div class="container">
+        <div id="branding">
+            <h1><a href="/">Forum</a></h1>
         </div>
-    </header>
-    <main>
-        <div class="container">
-            <h2>Latest Posts</h2>
-            {{if .Posts}}
-            <div class="table-container">
-                <table class="styled-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Created</th>
-                            <th>ID</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{range .Posts}}
-                        <tr>
-                            <td><a href='/forum/view?id={{.ID}}'>{{.Title}}</a></td>
-                            <td>{{.Created.Format "02 Jan 2006 15:04"}}</td>
-                            <td>#{{.ID}}</td>
-                        </tr>
-                        {{end}}
-                    </tbody>
-                </table>
-            </div>
-            {{else}}
-            <p>There's nothing to see here... yet!</p>
-            {{end}}
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/forum/create">Create Post</a></li>
+                {{if .LoggedIn}}
+                <li><a href="/forum/profile">{{.Username}}</a></li>
+                <li><a href="/forum/logout">Logout</a></li>
+                {{else}}
+                <li><a href="/forum/login">Login</a></li>
+                {{end}}
+            </ul>
+        </nav>
+    </div>
+</header>
+<main>
+    <div class="container">
+        <h2>Latest Posts</h2>
+        {{if .Posts}}
+        <div class="table-container">
+            <table class="styled-table">
+                <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Created</th>
+                    <th>ID</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{range .Posts}}
+                <tr>
+                    <td><a href='/forum/view?id={{.ID}}'>{{.Title}}</a></td>
+                    <td><a href="/forum/profile?username={{.Username}}">{{.Username}}</a></td>
+                    <td>{{.Created.Format "02 Jan 2006 15:04"}}</td>
+                    <td>#{{.ID}}</td>
+                </tr>
+                {{end}}
+                </tbody>
+            </table>
         </div>
-    </main>
-    <footer>
-        <div class="container">
-            <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
-        </div>
-    </footer>
+        {{else}}
+        <p>There's nothing to see here... yet!</p>
+        {{end}}
+    </div>
+</main>
+<footer>
+    <div class="container">
+        <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
+    </div>
+</footer>
 </body>
 </html>

@@ -7,21 +7,22 @@ import (
 )
 
 type Post struct {
-	ID      int
-	Title   string
-	Content string
-	Created time.Time
+	ID       int
+	Title    string
+	Content  string
+	Created  time.Time
+	Username string
 }
 
 type PostModel struct {
 	DB *sql.DB
 }
 
-func (m *PostModel) Insert(title string, content string) (int, error) {
-	stmt := `INSERT INTO posts (title, content, created)
-    VALUES(?, ?, datetime('now', 'utc'))`
+func (m *PostModel) InsertWithUserID(title string, content string, userID int) (int, error) {
+	stmt := `INSERT INTO posts (title, content, user_id, created)
+             VALUES(?, ?, ?, datetime('now', 'utc'))`
 
-	result, err := m.DB.Exec(stmt, title, content)
+	result, err := m.DB.Exec(stmt, title, content, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -52,7 +53,12 @@ func (m *PostModel) Get(id int) (*Post, error) {
 }
 
 func (m *PostModel) Latest() ([]*Post, error) {
-	stmt := `SELECT id, title, content, created FROM posts ORDER BY created DESC LIMIT 10`
+	stmt := `
+        SELECT posts.id, posts.title, posts.content, posts.created, users.username
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        ORDER BY posts.created DESC LIMIT 10
+    `
 
 	rows, err := m.DB.Query(stmt)
 	if err != nil {
@@ -64,7 +70,7 @@ func (m *PostModel) Latest() ([]*Post, error) {
 
 	for rows.Next() {
 		s := &Post{}
-		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created)
+		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Username)
 		if err != nil {
 			return nil, err
 		}

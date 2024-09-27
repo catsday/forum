@@ -182,6 +182,39 @@ h2 {
   color: #ffffff;
 }
 
+/* General style for input fields */
+.form-group input[type="text"],
+.form-group input[type="password"] {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    background-color: #1f2122;
+    border: 1px solid #666;
+    border-radius: 5px;
+    font-size: 16px;
+    color: #ffffff;
+    outline: none; /* Removes the default focus outline */
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"] {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    background-color: #1f2122;
+    border: 1px solid #666;
+    border-radius: 5px;
+    font-size: 16px;
+    color: #ffffff;
+    outline: none; /* Removes the default focus outline */
+}
+
+/* Hover state for input fields */
+.form-group input[type="text"]:hover,
+.form-group input[type="password"]:hover {
+    background-color: #444; /* Slightly lighter background on hover */
+}
+
 .form-group input[type="submit"] {
   background-color: #4f3b78;
   color: #ffffff;

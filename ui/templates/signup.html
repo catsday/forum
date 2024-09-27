@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create a New Post - Forum</title>
+    <title>Sign Up - Forum</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
@@ -23,19 +23,27 @@
     </header>
     <main>
         <div class="container">
-            <h2>Create a New Post</h2>
             <div class="form-container">
-                <form action="/forum/create" method="POST">
+                <h2>Create Your Account</h2>
+                <form action="/forum/signup" method="POST">
                     <div class="form-group">
-                        <label for="title">Title:</label>
-                        <input type="text" id="title" name="title" required>
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required>
                     </div>
                     <div class="form-group">
-                        <label for="content">Content:</label>
-                        <textarea id="content" name="content" rows="10" required></textarea>
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
                     </div>
                     <div class="form-group">
-                        <input type="submit" value="Create Post">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">Confirm Password:</label>
+                        <input type="password" id="confirm-password" name="confirm-password" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="submit" value="Sign Up">
                     </div>
                 </form>
             </div>
