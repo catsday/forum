@@ -5,11 +5,13 @@ import (
 	"forum/internal"
 	"log"
 	"net/http"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
+
 	dsn := "./internal/database/dummy.db"
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
@@ -19,8 +21,16 @@ func main() {
 
 	mux := internal.Router(db)
 
-	log.Println("Starting server on : http://localhost:4000")
-	err = http.ListenAndServe(":4000", mux)
+	staticPath := "ui/static"
+	fs := http.FileServer(http.Dir(staticPath))
+	mux.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "4000"
+	}
+	log.Printf("Starting server on : http://%s:%s", "0.0.0.0", port)
+	err = http.ListenAndServe(":"+port, mux)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
