@@ -21,6 +21,7 @@ type templateData struct {
 }
 
 func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
+	// Получаем данные о пользователе (если он залогинен)
 	session, _ := store.Get(r, "session-name")
 	var username string
 	var loggedIn bool
@@ -28,6 +29,7 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
 	if auth, ok := session.Values["authenticated"].(bool); ok && auth {
 		userID := session.Values["userID"]
 
+		// Запрашиваем имя пользователя из базы данных
 		err := postModel.DB.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&username)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -36,6 +38,7 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
 		loggedIn = true
 	}
 
+	// Получаем последние посты
 	posts, err := postModel.Latest()
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -43,6 +46,7 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
 		return
 	}
 
+	// Загружаем шаблон и передаем данные
 	files := []string{
 		"./ui/templates/home.html",
 	}

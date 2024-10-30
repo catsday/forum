@@ -10,53 +10,52 @@
 <header>
     <div class="container">
         <div id="branding">
-            <h1><a href="/">Forum</a></h1>
+            <h1><a href="/">FORUM</a></h1>
         </div>
-        <nav>
-            <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/forum/create">Create Post</a></li>
-                {{if .LoggedIn}}
-                <li><a href="/forum/profile">{{.Username}}</a></li>
-                <li><a href="/forum/logout">Logout</a></li>
-                {{else}}
-                <li><a href="/forum/login">Login</a></li>
-                {{end}}
-            </ul>
-        </nav>
     </div>
 </header>
+
 <main>
-    <div class="container">
-        <h2>Latest Posts</h2>
-        {{if .Posts}}
-        <div class="table-container">
-            <table class="styled-table">
-                <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Author</th>
-                    <th>Created</th>
-                    <th>ID</th>
-                </tr>
-                </thead>
-                <tbody>
+    <div class="main-container">
+        <aside class="left-sidebar">
+            <div class="sidebar-item"><a href="#">My Posts</a></div>
+            <div class="sidebar-item"><a href="/forum/create">Create Post</a></div>
+            <div class="sidebar-item"><a href="#">Categories</a></div>
+        </aside>
+
+        <div class="container main-content">
+            <div class="post-list">
+                <h2>Latest Posts</h2>
+                {{if .Posts}}
                 {{range .Posts}}
-                <tr>
-                    <td><a href='/forum/view?id={{.ID}}'>{{.Title}}</a></td>
-                    <td><a href="/forum/profile?username={{.Username}}">{{.Username}}</a></td>
-                    <td>{{.Created.Format "02 Jan 2006 15:04"}}</td>
-                    <td>#{{.ID}}</td>
-                </tr>
+                <div class="post-item">
+                    <div class="post-meta">
+                        <span class="post-author">By {{.Username}}</span>
+                        <span class="post-date">{{.Created.Format "02 Jan 2006 at 15:04"}}</span>
+                    </div>
+                    <div class="post-title">{{.Title}}</div>
+                    <div class="post-content">{{.Content}}</div>
+                </div>
                 {{end}}
-                </tbody>
-            </table>
+                {{else}}
+                <p>There's nothing to see here... yet!</p>
+                {{end}}
+            </div>
         </div>
-        {{else}}
-        <p>There's nothing to see here... yet!</p>
-        {{end}}
+
+        <aside class="right-sidebar">
+            {{if .LoggedIn}}
+            <div class="sidebar-item"><a href="/forum/profile">{{.Username}}</a></div>
+            <div class="sidebar-item"><a href="#">Liked/Disliked Posts</a></div>
+            <div class="sidebar-item"><a href="#">Comments</a></div>
+            <div class="sidebar-item"><a href="/forum/logout">Logout</a></div>
+            {{else}}
+            <div class="sidebar-item"><a href="/forum/login">Login</a></div>
+            {{end}}
+        </aside>
     </div>
 </main>
+
 <footer>
     <div class="container">
         <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
