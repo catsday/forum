@@ -39,5 +39,9 @@ func Router(db *sql.DB) *http.ServeMux {
 		UserProfile(w, r, db)
 	})
 
+	mux.HandleFunc("/toggle-vote", func(w http.ResponseWriter, r *http.Request) {
+		ToggleVote(w, r, postModel)
+	})
+
 	return mux
 }

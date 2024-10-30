@@ -28,10 +28,25 @@ body {
   background-color: #3a3d42;
   border: 2px solid #7289da;
   padding: 20px;
-  margin: 20px 0;
-  width: 100%;
+  margin: 20px auto;
+  width: auto;
+  max-width: 800px;
+  min-width: 300px;
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  word-wrap: break-word;
+}
+
+.post-content {
+  font-size: 1em;
+  color: #ffffff;
+  line-height: 1.6;
+  max-height: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
 }
 
 .post-title {
@@ -39,6 +54,10 @@ body {
   font-weight: bold;
   color: #ffcc4d;
   margin-bottom: 10px;
+  max-height: 2.4em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .post-meta {
@@ -58,11 +77,6 @@ body {
   color: #c0c0c0;
 }
 
-.post-content {
-  font-size: 1em;
-  color: #ffffff;
-  line-height: 1.6;
-}
 
 h2 {
   color: #ffffff;
@@ -241,8 +255,100 @@ footer a:hover {
   color: #7289da;
 }
 
+.sidebar-item button {
+  background-color: #5865f2;
+  color: #ffffff;
+  border: none;
+  padding: 10px;
+  margin: 5px 0;
+  width: 100%;
+  font-size: 0.9em;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.sidebar-item button:hover {
+  background-color: #7289da;
+}
+
+.sidebar-item button.active {
+  background-color: #ffcc4d;
+  color: #333;
+}
+
+.reset-button {
+  background-color: #ffcc4d;
+  color: #333;
+  font-size: 0.8em;
+  padding: 5px 10px;
+  width: auto;
+  cursor: pointer;
+  border-radius: 3px;
+  border: none;
+  margin-top: 10px;
+}
+
+.reset-button:hover {
+  background-color: #e6b800;
+}
+
+
+
 .right-sidebar {
   background-color: #3a3d42;
 }
+
+.post-categories {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: #ffcc4d;
+  gap: 8px;
+  display: flex;
+}
+.post-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+.category {
+  display: inline-block;
+  background-color: #5865f2;
+  color: #ffffff;
+  padding: 3px 8px;
+  margin-right: 5px;
+  border-radius: 5px;
+  font-size: 0.8em;
+}
+
+.post-votes {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.vote-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 0.9em;
+  color: #ffffff;
+  margin-left: 10px;
+}
+
+.vote-button img {
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+}
+
+.vote-button.active {
+  color: #ffcc4d;
+}
+
+
+
 
 

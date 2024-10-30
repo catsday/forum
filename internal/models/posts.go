@@ -7,32 +7,57 @@ import (
 )
 
 type Post struct {
-	ID       int
-	Title    string
-	Content  string
-	Created  time.Time
-	Username string
+	ID         int
+	Title      string
+	Content    string
+	Created    time.Time
+	Username   string
+	Likes      int
+	Dislikes   int
+	UserVote   int
+	Categories []string
 }
 
 type PostModel struct {
 	DB *sql.DB
 }
 
-func (m *PostModel) InsertWithUserID(title string, content string, userID int) (int, error) {
-	stmt := `INSERT INTO posts (title, content, user_id, created)
-             VALUES(?, ?, ?, datetime('now', 'utc'))`
-
-	result, err := m.DB.Exec(stmt, title, content, userID)
+func (m *PostModel) InsertWithUserIDAndCategories(title string, content string, userID int, categoryIDs []int) (int, error) {
+	if len(title) > 25 {
+		title = title[:25]
+	}
+	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
 	}
 
-	id, err := result.LastInsertId()
+	stmt := `INSERT INTO posts (title, content, user_id, created) VALUES (?, ?, ?, datetime('now', 'utc'))`
+	result, err := tx.Exec(stmt, title, content, userID)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	postID, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	for _, categoryID := range categoryIDs {
+		_, err := tx.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID, categoryID)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return 0, err
 	}
 
-	return int(id), nil
+	return int(postID), nil
 }
 
 func (m *PostModel) Get(id int) (*Post, error) {
@@ -52,7 +77,31 @@ func (m *PostModel) Get(id int) (*Post, error) {
 	return s, nil
 }
 
-func (m *PostModel) Latest() ([]*Post, error) {
+func (m *PostModel) GetCategories(postID int) ([]string, error) {
+	stmt := `SELECT categories.name FROM categories
+             JOIN post_categories ON categories.id = post_categories.category_id
+             WHERE post_categories.post_id = ?`
+
+	rows, err := m.DB.Query(stmt, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var categories []string
+	for rows.Next() {
+		var category string
+		err := rows.Scan(&category)
+		if err != nil {
+			return nil, err
+		}
+		categories = append(categories, category)
+	}
+
+	return categories, nil
+}
+
+func (m *PostModel) Latest(userID int) ([]*Post, error) {
 	stmt := `
         SELECT posts.id, posts.title, posts.content, posts.created, users.username
         FROM posts
@@ -67,14 +116,194 @@ func (m *PostModel) Latest() ([]*Post, error) {
 	defer rows.Close()
 
 	var posts []*Post
-
 	for rows.Next() {
-		s := &Post{}
-		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Username)
+		post := &Post{}
+		err = rows.Scan(&post.ID, &post.Title, &post.Content, &post.Created, &post.Username)
 		if err != nil {
 			return nil, err
 		}
-		posts = append(posts, s)
+
+		post.Categories, err = m.GetCategories(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		err = m.DB.QueryRow("SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?", post.ID, userID).Scan(&post.UserVote)
+		if err == sql.ErrNoRows {
+			post.UserVote = 0
+		} else if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, post)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
+func (m *PostModel) GetByCategoryID(categoryID int) ([]*Post, error) {
+	stmt := `
+        SELECT posts.id, posts.title, posts.content, posts.created, users.username
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        JOIN post_categories ON posts.id = post_categories.post_id
+        WHERE post_categories.category_id = ?
+        ORDER BY posts.created DESC
+    `
+
+	rows, err := m.DB.Query(stmt, categoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*Post
+	for rows.Next() {
+		post := &Post{}
+		err = rows.Scan(&post.ID, &post.Title, &post.Content, &post.Created, &post.Username)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Categories, err = m.GetCategories(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, post)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
+func (m *PostModel) GetByUserID(userID int) ([]*Post, error) {
+	stmt := `
+        SELECT posts.id, posts.title, posts.content, posts.created, users.username
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        WHERE posts.user_id = ?
+        ORDER BY posts.created DESC
+    `
+
+	rows, err := m.DB.Query(stmt, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*Post
+	for rows.Next() {
+		post := &Post{}
+		err = rows.Scan(&post.ID, &post.Title, &post.Content, &post.Created, &post.Username)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Categories, err = m.GetCategories(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, post)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
+func (m *PostModel) ToggleVote(postID int, userID int, voteType int) error {
+
+	var existingVote int
+	err := m.DB.QueryRow("SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?", postID, userID).Scan(&existingVote)
+
+	if err == nil && existingVote == voteType {
+		_, err = m.DB.Exec("DELETE FROM post_votes WHERE post_id = ? AND user_id = ?", postID, userID)
+		return err
+	}
+
+	if err == nil && existingVote != voteType {
+		_, err = m.DB.Exec("UPDATE post_votes SET vote_type = ? WHERE post_id = ? AND user_id = ?", voteType, postID, userID)
+		return err
+	}
+
+	_, err = m.DB.Exec("INSERT INTO post_votes (post_id, user_id, vote_type) VALUES (?, ?, ?)", postID, userID, voteType)
+	return err
+}
+
+func (m *PostModel) GetLikesAndDislikes(postID int) (int, int, error) {
+	var likes, dislikes int
+
+	err := m.DB.QueryRow("SELECT COUNT(*) FROM post_votes WHERE post_id = ? AND vote_type = 1", postID).Scan(&likes)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	err = m.DB.QueryRow("SELECT COUNT(*) FROM post_votes WHERE post_id = ? AND vote_type = -1", postID).Scan(&dislikes)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return likes, dislikes, nil
+}
+
+func (m *PostModel) GetLikedPostsByUserID(userID int) ([]*Post, error) {
+	stmt := `
+        SELECT posts.id, posts.title, posts.content, posts.created, users.username
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        JOIN post_votes ON posts.id = post_votes.post_id
+        WHERE post_votes.user_id = ? AND post_votes.vote_type = 1
+        ORDER BY posts.created DESC
+    `
+
+	rows, err := m.DB.Query(stmt, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*Post
+	for rows.Next() {
+		post := &Post{}
+		err = rows.Scan(&post.ID, &post.Title, &post.Content, &post.Created, &post.Username)
+		if err != nil {
+			return nil, err
+		}
+
+		post.UserVote = 1
+
+		post.Categories, err = m.GetCategories(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, post)
 	}
 
 	if err = rows.Err(); err != nil {

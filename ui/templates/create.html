@@ -10,15 +10,8 @@
     <header>
         <div class="container">
             <div id="branding">
-                <h1><a href="/">Forum</a></h1>
+                <h1><a href="/">FORUM</a></h1>
             </div>
-            <nav>
-                <ul>
-                    <li><a href="/">Home</a></li>
-                    <li><a href="/forum/create">Create Post</a></li>
-                    <li><a href="/forum/login">Login</a></li>
-                </ul>
-            </nav>
         </div>
     </header>
     <main>
@@ -35,8 +28,19 @@
                         <textarea id="content" name="content" rows="10" required></textarea>
                     </div>
                     <div class="form-group">
+                        <label>Categories:</label>
+                        <div>
+                            <input type="checkbox" name="categories" value="1"> Technology
+                            <input type="checkbox" name="categories" value="2"> Entertainment
+                            <input type="checkbox" name="categories" value="3"> Sports
+                            <input type="checkbox" name="categories" value="4"> Education
+                            <input type="checkbox" name="categories" value="5"> Health
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <input type="submit" value="Create Post">
                     </div>
+
                 </form>
             </div>
         </div>
@@ -46,5 +50,12 @@
             <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
         </div>
     </footer>
+    <script>
+        document.querySelector("#post-title-input").addEventListener("input", function() {
+            if (this.value.length > 25) {
+                this.value = this.value.slice(0, 25);
+            }
+        });
+    </script>
 </body>
 </html>

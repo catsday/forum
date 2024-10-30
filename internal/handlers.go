@@ -15,38 +15,68 @@ import (
 var store = sessions.NewCookieStore([]byte("your-secret-key"))
 
 type templateData struct {
-	Posts    []*models.Post
-	Username string
-	LoggedIn bool
+	Posts            []*models.Post
+	Username         string
+	LoggedIn         bool
+	ActiveCategoryID int
 }
 
 func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
-	// Получаем данные о пользователе (если он залогинен)
 	session, _ := store.Get(r, "session-name")
 	var username string
 	var loggedIn bool
+	var userID int
 
 	if auth, ok := session.Values["authenticated"].(bool); ok && auth {
-		userID := session.Values["userID"]
-
-		// Запрашиваем имя пользователя из базы данных
+		userID = session.Values["userID"].(int)
 		err := postModel.DB.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&username)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 		loggedIn = true
+	} else {
+		userID = 0
 	}
 
-	// Получаем последние посты
-	posts, err := postModel.Latest()
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		log.Printf("Error retrieving latest posts: %v", err)
-		return
+	var posts []*models.Post
+	var err error
+	activeCategoryID := 0
+
+	if r.URL.Query().Get("likedPosts") == "1" && loggedIn {
+		posts, err = postModel.GetLikedPostsByUserID(userID)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			log.Printf("Error retrieving liked posts: %v", err)
+			return
+		}
+	} else {
+		categoryIDStr := r.URL.Query().Get("categoryID")
+		if categoryIDStr != "" {
+			categoryID, convErr := strconv.Atoi(categoryIDStr)
+			if convErr == nil {
+				posts, err = postModel.GetByCategoryID(categoryID)
+				activeCategoryID = categoryID
+				if err != nil {
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					log.Printf("Error retrieving posts by category: %v", err)
+					return
+				}
+			} else {
+				log.Printf("Error converting categoryID to integer: %v", convErr)
+				http.Error(w, "Invalid category ID", http.StatusBadRequest)
+				return
+			}
+		} else {
+			posts, err = postModel.Latest(userID)
+			if err != nil {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				log.Printf("Error retrieving latest posts: %v", err)
+				return
+			}
+		}
 	}
 
-	// Загружаем шаблон и передаем данные
 	files := []string{
 		"./ui/templates/home.html",
 	}
@@ -58,15 +88,17 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
 	}
 
 	data := templateData{
-		Posts:    posts,
-		Username: username,
-		LoggedIn: loggedIn,
+		Posts:            posts,
+		Username:         username,
+		LoggedIn:         loggedIn,
+		ActiveCategoryID: activeCategoryID,
 	}
 
 	err = ts.Execute(w, data)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Printf("Error executing template: %v", err)
+		return
 	}
 }
 
@@ -140,13 +172,22 @@ func PostCreate(w http.ResponseWriter, r *http.Request, postModel *models.PostMo
 		return
 	}
 
-	_, err := postModel.InsertWithUserID(title, content, userID.(int))
+	var categoryIDs []int
+	for _, categoryIDStr := range r.Form["categories"] {
+		categoryID, err := strconv.Atoi(categoryIDStr)
+		if err == nil {
+			categoryIDs = append(categoryIDs, categoryID)
+		}
+	}
+
+	postID, err := postModel.InsertWithUserIDAndCategories(title, content, userID.(int), categoryIDs)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Printf("Error creating new post: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("New post created with ID %d and categories: %v", postID, categoryIDs)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -316,4 +357,39 @@ func init() {
 		MaxAge:   600,
 		HttpOnly: true,
 	}
+}
+
+func ToggleVote(w http.ResponseWriter, r *http.Request, postModel *models.PostModel) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	session, _ := store.Get(r, "session-name")
+	userID, ok := session.Values["userID"].(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	postID, err := strconv.Atoi(r.FormValue("postID"))
+	if err != nil {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
+
+	voteType, err := strconv.Atoi(r.FormValue("voteType"))
+	if err != nil || (voteType != 1 && voteType != -1) {
+		http.Error(w, "Invalid vote type", http.StatusBadRequest)
+		return
+	}
+
+	err = postModel.ToggleVote(postID, userID, voteType)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

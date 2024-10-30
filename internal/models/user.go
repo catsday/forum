@@ -20,10 +20,6 @@ type UserModel struct {
 	DB *sql.DB
 }
 
-//func NewUserModel(db *sql.DB) *UserModel {
-//	return &UserModel{DB: db}
-//}
-
 func (m *UserModel) Create(username, email, password string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
