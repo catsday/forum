@@ -3,33 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}} - Forum</title>
+    <title>{{.Post.Title}} - Forum</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <div id="branding">
-                <h1><a href="/">FORUM</a></h1>
-            </div>
+<header>
+    <div class="header-content">
+        <h1><a href="/">FORUM</a></h1>
+    </div>
+</header>
+
+<div class="main-container">
+    <aside class="left-sidebar">
+        {{if .LoggedIn}}
+        <div class="sidebar-item"><a href="/?myPosts=1">My Posts</a></div>
+        {{end}}
+        <div class="sidebar-item"><a href="/forum/create">Create Post</a></div>
+        <div class="sidebar-item"><strong>Categories</strong></div>
+        <div class="sidebar-item">
+            <button onclick="filterByCategory(1)" class="{{if eq .ActiveCategoryID 1}}active{{end}}">Technology</button>
+            <button onclick="filterByCategory(2)" class="{{if eq .ActiveCategoryID 2}}active{{end}}">Entertainment</button>
+            <button onclick="filterByCategory(3)" class="{{if eq .ActiveCategoryID 3}}active{{end}}">Sports</button>
+            <button onclick="filterByCategory(4)" class="{{if eq .ActiveCategoryID 4}}active{{end}}">Education</button>
+            <button onclick="filterByCategory(5)" class="{{if eq .ActiveCategoryID 5}}active{{end}}">Health</button>
         </div>
-    </header>
-    <main>
-        <div class="container">
-            <div class="post-view">
-                <h2>{{.Title}}</h2>
-                <p class="post-meta">Posted on {{.Created.Format "02 Jan 2006 15:04"}}</p>
-                <div class="post-content">
-                    {{.Content}}
+        <div class="sidebar-item">
+            <button onclick="resetFilter()" class="reset-button">Reset</button>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="post-detail">
+            <h2>{{.Post.Title}}</h2>
+            <div class="post-meta">
+                <span class="post-author">Posted by {{.Post.Username}}</span>
+                <span class="post-date">on {{.Post.Created.Format "02 Jan 2006 at 15:04"}}</span>
+            </div>
+            <div class="post-content">
+                {{range split .Post.Content}}<p>{{.}}</p>{{end}}
+            </div>
+            <div class="post-footer">
+                <div class="post-categories">
+                    {{range .Post.Categories}}
+                    <span class="category">{{.}}</span>
+                    {{end}}
                 </div>
-                <p><a class="back-link" href="/">Back to Home</a></p>
+                <div class="post-votes">
+                    <button onclick="toggleVote('{{.Post.ID}}', 1)" class="vote-button like-button {{if eq .Post.UserVote 1}}active{{end}}">
+                        <img src="/static/img/like.png" alt="Like"> {{.Post.Likes}}
+                    </button>
+                    <button onclick="toggleVote('{{.Post.ID}}', -1)" class="vote-button dislike-button {{if eq .Post.UserVote -1}}active{{end}}">
+                        <img src="/static/img/dislike.png" alt="Dislike"> {{.Post.Dislikes}}
+                    </button>
+                </div>
             </div>
+
+            <h3 class="comments-title">Comments</h3>
+            <div class="comments-list">
+                {{if .Comments}}
+                {{range .Comments}}
+                <div class="comment">
+                    <div class="comment-meta">
+                        <span>Posted by {{.Username}}</span>
+                        <span>on {{.Created.Format "02 Jan 2006 at 15:04"}}</span>
+                    </div>
+                    <p>{{.Content}}</p>
+                </div>
+                {{end}}
+                {{else}}
+                <p>No comments yet.</p>
+                {{end}}
+            </div>
+
+            {{if .LoggedIn}}
+            <form action="/post/{{.Post.ID}}/comment" method="POST" class="comment-form">
+                <textarea name="content" rows="3" placeholder="Add a comment..." required></textarea>
+                <button type="submit">Post Comment</button>
+            </form>
+            {{else}}
+            <p><a href="/forum/login">Log in</a> to post a comment.</p>
+            {{end}}
         </div>
-    </main>
-    <footer>
-        <div class="container">
-            <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
-        </div>
-    </footer>
+    </div>
+
+    <aside class="right-sidebar">
+        {{if .LoggedIn}}
+        <div class="sidebar-item"><a href="/forum/profile">{{.Username}}</a></div>
+        <div class="sidebar-item"><a href="#" onclick="filterLikedPosts()">Liked Posts</a></div>
+        <div class="sidebar-item"><a href="#">Comments</a></div>
+        <div class="sidebar-item"><a href="/forum/logout">Logout</a></div>
+        {{else}}
+        <div class="sidebar-item"><a href="/forum/login">Login</a></div>
+        {{end}}
+    </aside>
+</div>
+
+<footer>
+    <div class="footer-content">
+        <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
+    </div>
+</footer>
+
+<script src="/static/js/main.js"></script>
 </body>
 </html>

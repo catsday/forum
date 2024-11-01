@@ -18,8 +18,21 @@
     <main>
         <div class="main-container">
             <aside class="left-sidebar">
-                <div class="sidebar-item"><a href="#" onclick="filterMyPosts()">My Posts</a></div>
-                <div class="sidebar-item"><a href="/forum/create">Create Post</a></div>
+                {{if .LoggedIn}}
+                <div class="sidebar-item">
+                    <button onclick="window.location.href='/?myPosts=1'" class="my-posts-button">
+                        My Posts
+                    </button>
+                </div>
+
+                {{end}}
+
+                <div class="sidebar-item">
+                    <button onclick="window.location.href='/forum/create'" class="create-post-button">
+                        Create Post
+                    </button>
+                </div>
+
 
                 <div class="sidebar-item"><strong>Categories</strong></div>
 
@@ -38,7 +51,6 @@
 
             <div class="container main-content">
                 <div class="post-list">
-                    <h2>Latest Posts</h2>
                     {{if .Posts}}
                     {{range .Posts}}
                     <div class="post-item">
@@ -47,8 +59,17 @@
                             <span class="post-date">{{.Created.Format "02 Jan 2006 at 15:04"}}</span>
                         </div>
 
-                        <div class="post-title">{{.Title}}</div>
-                        <div class="post-content">{{.Content}}</div>
+                        <div class="post-title">
+                            <a href="/post/{{.ID}}" class="post-link">{{.Title}}</a>
+                        </div>
+
+                        <div class="post-content">
+                            {{range $line := split .Content}}
+                            <p>{{$line}}</p>
+                            {{end}}
+                        </div>
+
+
 
                         <div class="post-footer">
                             <div class="post-categories">
@@ -66,7 +87,13 @@
                                         class="vote-button dislike-button {{if eq .UserVote -1}}active{{end}}">
                                     <img src="/static/img/dislike.png" alt="Dislike"> {{.Dislikes}}
                                 </button>
+
+                                <button onclick="window.location.href='/post/{{.ID}}';"
+                                        class="vote-button comment-button {{if .UserCommented}}active{{end}}">
+                                    <img src="/static/img/comment.png" alt="Comments"> {{.CommentCount}}
+                                </button>
                             </div>
+
 
                         </div>
                     </div>
@@ -77,17 +104,29 @@
                     <p>There's nothing to see here... yet!</p>
                     {{end}}
                 </div>
+                <div class="separator-line"></div>
             </div>
 
             <aside class="right-sidebar">
                 {{if .LoggedIn}}
-                <div class="sidebar-item"><a href="/forum/profile">{{.Username}}</a></div>
-                <div class="sidebar-item"><a href="#" onclick="filterLikedPosts()">Liked Posts</a></div>
-                <div class="sidebar-item"><a href="#">Comments</a></div>
-                <div class="sidebar-item"><a href="/forum/logout">Logout</a></div>
+                <div class="sidebar-item">
+                    <button onclick="window.location.href='/forum/profile'" class="profile-button">{{.Username}}</button>
+                </div>
+                <div class="sidebar-item">
+                    <button onclick="filterLikedPosts()" class="liked-posts-button">Liked Posts</button>
+                </div>
+                <div class="sidebar-item">
+                    <button onclick="window.location.href='/forum/comments'" class="comments-button">Comments</button>
+                </div>
+                <div class="sidebar-item">
+                    <button onclick="window.location.href='/forum/logout'" class="logout-button">Logout</button>
+                </div>
                 {{else}}
-                <div class="sidebar-item"><a href="/forum/login">Login</a></div>
+                <div class="sidebar-item">
+                    <button onclick="window.location.href='/forum/login'" class="login-button">Login</button>
+                </div>
                 {{end}}
+
             </aside>
 
 
@@ -99,46 +138,6 @@
             <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
         </div>
     </footer>
-    <script>
-        function filterByCategory(categoryID) {
-            const buttons = document.querySelectorAll(".sidebar-item button");
-            buttons.forEach(button => button.classList.remove("active"));
-
-            document.querySelector(`button[onclick="filterByCategory(${categoryID})"]`).classList.add("active");
-            window.location.href = `/?categoryID=${categoryID}`;
-        }
-
-        function resetFilter() {
-            window.location.href = "/";
-        }
-
-        function filterMyPosts() {
-            window.location.href = "/?myPosts=1";
-        }
-
-        function toggleVote(postID, voteType) {
-            fetch("/toggle-vote", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: `postID=${postID}&voteType=${voteType}`
-            })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        alert("You must be logged in to vote.");
-                    }
-                })
-                .catch(error => console.error("Error:", error));
-        }
-        function filterLikedPosts() {
-            window.location.href = "/?likedPosts=1";
-        }
-
-    </script>
-
-
+    <script src="/static/js/main.js"></script>
 </body>
 </html>

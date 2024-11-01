@@ -7,20 +7,25 @@ import (
 )
 
 type Post struct {
-	ID         int
-	Title      string
-	Content    string
-	Created    time.Time
-	Username   string
-	Likes      int
-	Dislikes   int
-	UserVote   int
-	Categories []string
+	ID            int
+	Title         string
+	Content       string
+	Created       time.Time
+	UserID        int
+	Username      string
+	Likes         int
+	Dislikes      int
+	UserVote      int
+	Categories    []string
+	UserCommented bool
+	CommentCount  int
 }
 
 type PostModel struct {
 	DB *sql.DB
 }
+
+var gmtPlus5 = time.FixedZone("GMT+5", 5*60*60)
 
 func (m *PostModel) InsertWithUserIDAndCategories(title string, content string, userID int, categoryIDs []int) (int, error) {
 	if len(title) > 25 {
@@ -31,8 +36,8 @@ func (m *PostModel) InsertWithUserIDAndCategories(title string, content string, 
 		return 0, err
 	}
 
-	stmt := `INSERT INTO posts (title, content, user_id, created) VALUES (?, ?, ?, datetime('now', 'utc'))`
-	result, err := tx.Exec(stmt, title, content, userID)
+	stmt := `INSERT INTO posts (title, content, user_id, created) VALUES (?, ?, ?, ?)`
+	result, err := tx.Exec(stmt, title, content, userID, time.Now().In(gmtPlus5))
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -61,13 +66,11 @@ func (m *PostModel) InsertWithUserIDAndCategories(title string, content string, 
 }
 
 func (m *PostModel) Get(id int) (*Post, error) {
-	stmt := `SELECT id, title, content, created FROM posts WHERE id = ?`
-
+	stmt := `SELECT id, title, content, created, user_id FROM posts WHERE id = ?`
 	row := m.DB.QueryRow(stmt, id)
 
 	s := &Post{}
-
-	err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created)
+	err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.UserID)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("no matching record found")
 	} else if err != nil {
@@ -150,7 +153,7 @@ func (m *PostModel) Latest(userID int) ([]*Post, error) {
 	return posts, nil
 }
 
-func (m *PostModel) GetByCategoryID(categoryID int) ([]*Post, error) {
+func (m *PostModel) GetByCategoryID(categoryID, userID int) ([]*Post, error) {
 	stmt := `
         SELECT posts.id, posts.title, posts.content, posts.created, users.username
         FROM posts
@@ -181,6 +184,13 @@ func (m *PostModel) GetByCategoryID(categoryID int) ([]*Post, error) {
 
 		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
 		if err != nil {
+			return nil, err
+		}
+
+		err = m.DB.QueryRow("SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?", post.ID, userID).Scan(&post.UserVote)
+		if err == sql.ErrNoRows {
+			post.UserVote = 0
+		} else if err != nil {
 			return nil, err
 		}
 
@@ -222,6 +232,18 @@ func (m *PostModel) GetByUserID(userID int) ([]*Post, error) {
 			return nil, err
 		}
 
+		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		err = m.DB.QueryRow("SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?", post.ID, userID).Scan(&post.UserVote)
+		if err == sql.ErrNoRows {
+			post.UserVote = 0
+		} else if err != nil {
+			return nil, err
+		}
+
 		posts = append(posts, post)
 	}
 
@@ -232,38 +254,31 @@ func (m *PostModel) GetByUserID(userID int) ([]*Post, error) {
 	return posts, nil
 }
 
-func (m *PostModel) ToggleVote(postID int, userID int, voteType int) error {
-
+func (m *PostModel) ToggleVote(postID, userID, voteType int) error {
 	var existingVote int
 	err := m.DB.QueryRow("SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?", postID, userID).Scan(&existingVote)
-
 	if err == nil && existingVote == voteType {
 		_, err = m.DB.Exec("DELETE FROM post_votes WHERE post_id = ? AND user_id = ?", postID, userID)
 		return err
 	}
-
 	if err == nil && existingVote != voteType {
 		_, err = m.DB.Exec("UPDATE post_votes SET vote_type = ? WHERE post_id = ? AND user_id = ?", voteType, postID, userID)
 		return err
 	}
-
 	_, err = m.DB.Exec("INSERT INTO post_votes (post_id, user_id, vote_type) VALUES (?, ?, ?)", postID, userID, voteType)
 	return err
 }
 
 func (m *PostModel) GetLikesAndDislikes(postID int) (int, int, error) {
 	var likes, dislikes int
-
 	err := m.DB.QueryRow("SELECT COUNT(*) FROM post_votes WHERE post_id = ? AND vote_type = 1", postID).Scan(&likes)
 	if err != nil {
 		return 0, 0, err
 	}
-
 	err = m.DB.QueryRow("SELECT COUNT(*) FROM post_votes WHERE post_id = ? AND vote_type = -1", postID).Scan(&dislikes)
 	if err != nil {
 		return 0, 0, err
 	}
-
 	return likes, dislikes, nil
 }
 
@@ -290,19 +305,15 @@ func (m *PostModel) GetLikedPostsByUserID(userID int) ([]*Post, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		post.UserVote = 1
-
 		post.Categories, err = m.GetCategories(post.ID)
 		if err != nil {
 			return nil, err
 		}
-
 		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
 		if err != nil {
 			return nil, err
 		}
-
 		posts = append(posts, post)
 	}
 
@@ -311,4 +322,28 @@ func (m *PostModel) GetLikedPostsByUserID(userID int) ([]*Post, error) {
 	}
 
 	return posts, nil
+}
+
+func (m *PostModel) GetUserVote(postID, userID int) (int, error) {
+	var voteType int
+	err := m.DB.QueryRow(`SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?`, postID, userID).Scan(&voteType)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return voteType, nil
+}
+
+func (m *PostModel) GetUsername(userID int) (string, error) {
+	var username string
+	stmt := `SELECT username FROM users WHERE id = ?`
+	err := m.DB.QueryRow(stmt, userID).Scan(&username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", errors.New("user not found")
+		}
+		return "", err
+	}
+	return username, nil
 }

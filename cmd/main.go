@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+
 	dsn := "./internal/database/dummy.db"
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
