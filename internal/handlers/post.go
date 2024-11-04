@@ -33,7 +33,7 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	err = postModel.DB.QueryRow("SELECT username FROM users WHERE id = ?", post.UserID).Scan(&post.Username)
+	err = db.QueryRow("SELECT username FROM users WHERE id = ?", post.UserID).Scan(&post.Username)
 	if err != nil {
 		log.Printf("Error retrieving username for post ID %d: %v", post.ID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -66,12 +66,18 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		LoggedIn         bool
 		Username         string
 		ActiveCategoryID int
+		FilterMyPosts    bool
+		FilterLikedPosts bool
+		FilterComments   bool
 	}{
 		Post:             post,
 		Comments:         comments,
 		LoggedIn:         userID > 0,
 		Username:         post.Username,
 		ActiveCategoryID: 0,
+		FilterMyPosts:    false,
+		FilterLikedPosts: false,
+		FilterComments:   false,
 	}
 
 	funcMap := template.FuncMap{
@@ -80,7 +86,12 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		},
 	}
 
-	files := []string{"./ui/templates/view.html"}
+	files := []string{
+		"./ui/templates/view.html",
+		"./ui/templates/left_sidebar.html",
+		"./ui/templates/right_sidebar.html",
+	}
+
 	ts, err := template.New("view.html").Funcs(funcMap).ParseFiles(files...)
 	if err != nil {
 		log.Printf("Error parsing template files: %v", err)

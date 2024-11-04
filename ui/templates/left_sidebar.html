@@ -1,0 +1,29 @@
+<aside class="left-sidebar">
+  {{if .LoggedIn}}
+  <div class="sidebar-item">
+    <button onclick="window.location.href='/?myPosts=1'" class="my-posts-button {{if .FilterMyPosts}}active-filter{{end}}">
+      My Posts
+    </button>
+  </div>
+  {{end}}
+
+  <div class="sidebar-item">
+    <button onclick="window.location.href='/forum/create'" class="create-post-button">
+      Create Post
+    </button>
+  </div>
+
+  <div class="sidebar-item"><strong>Categories</strong></div>
+
+  <div class="sidebar-item">
+    <button onclick="filterByCategory(1)" class="{{if eq .ActiveCategoryID 1}}active-filter{{end}}">Technology</button>
+    <button onclick="filterByCategory(2)" class="{{if eq .ActiveCategoryID 2}}active-filter{{end}}">Entertainment</button>
+    <button onclick="filterByCategory(3)" class="{{if eq .ActiveCategoryID 3}}active-filter{{end}}">Sports</button>
+    <button onclick="filterByCategory(4)" class="{{if eq .ActiveCategoryID 4}}active-filter{{end}}">Education</button>
+    <button onclick="filterByCategory(5)" class="{{if eq .ActiveCategoryID 5}}active-filter{{end}}">Health</button>
+  </div>
+
+  <div class="sidebar-item">
+    <button onclick="resetFilter()" class="reset-button">Reset</button>
+  </div>
+</aside>

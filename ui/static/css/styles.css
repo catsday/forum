@@ -276,30 +276,16 @@ footer a:hover {
   margin-bottom: 15px;
 }
 
-.comments-list {
-  margin-top: 10px;
-  padding: 15px;
-  background-color: #2c2f33;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.comment {
-  border-bottom: 1px solid #5865f2;
-  padding: 10px 0;
-  margin-bottom: 10px;
-}
-
 .comment-meta {
   font-size: 0.9em;
   color: #9a9a9a;
   margin-bottom: 5px;
 }
 
-.comment p {
-  font-size: 1em;
-  color: #ffffff;
+.comment-meta span:last-child {
+  float: right;
 }
+
 
 .comment-form {
   margin-top: 20px;
@@ -474,3 +460,47 @@ footer a:hover {
   background-color: #5865f2;
 }
 
+.comments-list, .user-comments {
+  margin-top: 30px;
+  padding: 15px;
+  background-color: #3a3d42;
+  border-radius: 8px;
+  border-left: 4px solid #ffcc4d;
+}
+
+.comments-list h4, .user-comments h4 {
+  font-size: 1.3em;
+  color: #ffcc4d;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.comments-list .comment, .user-comments .comment {
+  padding: 10px;
+  border-bottom: 1px solid #5865f2;
+}
+
+.comments-list .comment:last-child, .user-comments .comment:last-child {
+  border-bottom: none;
+}
+
+.comments-list .comment span, .user-comments .comment span {
+  font-size: 0.9em;
+  color: #9a9a9a;
+  margin-right: 10px;
+}
+
+.comments-list .comment p, .user-comments .comment p {
+  color: #ffffff;
+  font-size: 1em;
+  margin: 5px 0 0 0;
+}
+
+.active-filter {
+  background-color: #ffcc4d !important;
+  color: #2c2f33 !important;
+  font-weight: bold;
+  border: 2px solid #ffcc4d;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

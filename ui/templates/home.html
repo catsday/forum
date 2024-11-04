@@ -7,137 +7,99 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <div id="branding">
-                <h1><a href="/">FORUM</a></h1>
-            </div>
+<header>
+    <div class="container">
+        <div id="branding">
+            <h1><a href="/">FORUM</a></h1>
         </div>
-    </header>
+    </div>
+</header>
 
-    <main>
-        <div class="main-container">
-            <aside class="left-sidebar">
-                {{if .LoggedIn}}
-                <div class="sidebar-item">
-                    <button onclick="window.location.href='/?myPosts=1'" class="my-posts-button">
-                        My Posts
-                    </button>
-                </div>
+<main>
+    <div class="main-container">
+        {{template "left_sidebar.html" .}}
 
-                {{end}}
+        <div class="container main-content">
+            <div class="post-list">
+                {{if .Posts}}
+                {{range .Posts}}
+                <div class="post-item">
+                    <div class="post-meta">
+                        <span class="post-author">By {{.Username}}</span>
+                        <span class="post-date">{{.Created.Format "02 Jan 2006 at 15:04"}}</span>
+                    </div>
 
-                <div class="sidebar-item">
-                    <button onclick="window.location.href='/forum/create'" class="create-post-button">
-                        Create Post
-                    </button>
-                </div>
+                    <div class="post-title">
+                        <a href="/post/{{.ID}}" class="post-link">{{.Title}}</a>
+                    </div>
 
+                    <div class="post-content">
+                        {{ $paragraphs := split .Content }}
+                        {{ range $index, $paragraph := $paragraphs }}
+                        {{ if lt $index 3 }}
+                        <p>{{ $paragraph }}</p>
+                        {{ else }}
+                        {{ break }}
+                        {{ end }}
+                        {{ end }}
+                        {{ if gt (len $paragraphs) 3 }}
+                        <p>...</p>
+                        {{ end }}
+                    </div>
 
-                <div class="sidebar-item"><strong>Categories</strong></div>
-
-                <div class="sidebar-item">
-                    <button onclick="filterByCategory(1)" class="{{if eq .ActiveCategoryID 1}}active{{end}}">Technology</button>
-                    <button onclick="filterByCategory(2)" class="{{if eq .ActiveCategoryID 2}}active{{end}}">Entertainment</button>
-                    <button onclick="filterByCategory(3)" class="{{if eq .ActiveCategoryID 3}}active{{end}}">Sports</button>
-                    <button onclick="filterByCategory(4)" class="{{if eq .ActiveCategoryID 4}}active{{end}}">Education</button>
-                    <button onclick="filterByCategory(5)" class="{{if eq .ActiveCategoryID 5}}active{{end}}">Health</button>
-                </div>
-
-                <div class="sidebar-item">
-                    <button onclick="resetFilter()" class="reset-button">Reset</button>
-                </div>
-            </aside>
-
-            <div class="container main-content">
-                <div class="post-list">
-                    {{if .Posts}}
-                    {{range .Posts}}
-                    <div class="post-item">
-                        <div class="post-meta">
-                            <span class="post-author">By {{.Username}}</span>
-                            <span class="post-date">{{.Created.Format "02 Jan 2006 at 15:04"}}</span>
+                    {{if $.FilterComments}}
+                    <div class="user-comments">
+                        <h4>My Comments</h4>
+                        {{range .UserComments}}
+                        <div class="comment">
+                            <span>{{.Created.Format "02 Jan 2006 at 15:04"}}:</span>
+                            <p>{{.Content}}</p>
                         </div>
+                        {{end}}
+                    </div>
+                    {{end}}
 
-                        <div class="post-title">
-                            <a href="/post/{{.ID}}" class="post-link">{{.Title}}</a>
-                        </div>
-
-                        <div class="post-content">
-                            {{range $line := split .Content}}
-                            <p>{{$line}}</p>
+                    <div class="post-footer">
+                        <div class="post-categories">
+                            {{range .Categories}}
+                            <span class="category">{{.}}</span>
                             {{end}}
                         </div>
 
+                        <div class="post-votes">
+                            <button onclick="toggleVote('{{.ID}}', 1)"
+                                    class="vote-button like-button {{if eq .UserVote 1}}active{{end}}">
+                                <img src="/static/img/like.png" alt="Like"> {{.Likes}}
+                            </button>
+                            <button onclick="toggleVote('{{.ID}}', -1)"
+                                    class="vote-button dislike-button {{if eq .UserVote -1}}active{{end}}">
+                                <img src="/static/img/dislike.png" alt="Dislike"> {{.Dislikes}}
+                            </button>
 
-
-                        <div class="post-footer">
-                            <div class="post-categories">
-                                {{range .Categories}}
-                                <span class="category">{{.}}</span>
-                                {{end}}
-                            </div>
-
-                            <div class="post-votes">
-                                <button onclick="toggleVote('{{.ID}}', 1)"
-                                        class="vote-button like-button {{if eq .UserVote 1}}active{{end}}">
-                                    <img src="/static/img/like.png" alt="Like"> {{.Likes}}
-                                </button>
-                                <button onclick="toggleVote('{{.ID}}', -1)"
-                                        class="vote-button dislike-button {{if eq .UserVote -1}}active{{end}}">
-                                    <img src="/static/img/dislike.png" alt="Dislike"> {{.Dislikes}}
-                                </button>
-
-                                <button onclick="window.location.href='/post/{{.ID}}';"
-                                        class="vote-button comment-button {{if .UserCommented}}active{{end}}">
-                                    <img src="/static/img/comment.png" alt="Comments"> {{.CommentCount}}
-                                </button>
-                            </div>
-
-
+                            <button onclick="window.location.href='/post/{{.ID}}';"
+                                    class="vote-button comment-button {{if .UserCommented}}active{{end}}">
+                                <img src="/static/img/comment.png" alt="Comments"> {{.CommentCount}}
+                            </button>
                         </div>
                     </div>
-
-
-                    {{end}}
-                    {{else}}
-                    <p>There's nothing to see here... yet!</p>
-                    {{end}}
-                </div>
-                <div class="separator-line"></div>
-            </div>
-
-            <aside class="right-sidebar">
-                {{if .LoggedIn}}
-                <div class="sidebar-item">
-                    <button onclick="window.location.href='/forum/profile'" class="profile-button">{{.Username}}</button>
-                </div>
-                <div class="sidebar-item">
-                    <button onclick="filterLikedPosts()" class="liked-posts-button">Liked Posts</button>
-                </div>
-                <div class="sidebar-item">
-                    <button onclick="window.location.href='/forum/comments'" class="comments-button">Comments</button>
-                </div>
-                <div class="sidebar-item">
-                    <button onclick="window.location.href='/forum/logout'" class="logout-button">Logout</button>
-                </div>
-                {{else}}
-                <div class="sidebar-item">
-                    <button onclick="window.location.href='/forum/login'" class="login-button">Login</button>
                 </div>
                 {{end}}
-
-            </aside>
-
-
+                {{else}}
+                <p>There's nothing to see here... yet!</p>
+                {{end}}
+            </div>
+            <div class="separator-line"></div>
         </div>
-    </main>
 
-    <footer>
-        <div class="container">
-            <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
-        </div>
-    </footer>
-    <script src="/static/js/main.js"></script>
+        {{template "right_sidebar.html" .}}
+    </div>
+</main>
+
+<footer>
+    <div class="container">
+        <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
+    </div>
+</footer>
+<script src="/static/js/main.js"></script>
 </body>
 </html>

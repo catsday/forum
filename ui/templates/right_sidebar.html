@@ -1,0 +1,24 @@
+<aside class="right-sidebar">
+  {{if .LoggedIn}}
+  <div class="sidebar-item">
+    <button onclick="window.location.href='/forum/profile'" class="profile-button">{{.Username}}</button>
+  </div>
+  <div class="sidebar-item">
+    <button onclick="filterLikedPosts()" class="liked-posts-button {{if .FilterLikedPosts}}active-filter{{end}}">
+      Liked Posts
+    </button>
+  </div>
+  <div class="sidebar-item">
+    <button onclick="window.location.href='/?filter=comments'" class="comments-filter-button {{if .FilterComments}}active-filter{{end}}">
+      Comments
+    </button>
+  </div>
+  <div class="sidebar-item">
+    <button onclick="window.location.href='/forum/logout'" class="logout-button">Logout</button>
+  </div>
+  {{else}}
+  <div class="sidebar-item">
+    <button onclick="window.location.href='/forum/login'" class="login-button">Login</button>
+  </div>
+  {{end}}
+</aside>

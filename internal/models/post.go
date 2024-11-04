@@ -19,6 +19,7 @@ type Post struct {
 	Categories    []string
 	UserCommented bool
 	CommentCount  int
+	UserComments  []*Comment
 }
 
 type PostModel struct {
@@ -346,4 +347,80 @@ func (m *PostModel) GetUsername(userID int) (string, error) {
 		return "", err
 	}
 	return username, nil
+}
+
+func (m *PostModel) GetPostsWithUserComments(userID int) ([]*Post, error) {
+	stmt := `
+		SELECT DISTINCT posts.id, posts.title, posts.content, posts.created, users.username
+		FROM posts
+		JOIN comments ON posts.id = comments.post_id
+		JOIN users ON posts.user_id = users.id
+		WHERE comments.user_id = ?
+		ORDER BY posts.created DESC
+	`
+	rows, err := m.DB.Query(stmt, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*Post
+	for rows.Next() {
+		post := &Post{}
+		err = rows.Scan(&post.ID, &post.Title, &post.Content, &post.Created, &post.Username)
+		if err != nil {
+			return nil, err
+		}
+
+		post.UserComments, err = m.GetCommentsByUserIDForPost(post.ID, userID)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Likes, post.Dislikes, err = m.GetLikesAndDislikes(post.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		err = m.DB.QueryRow("SELECT vote_type FROM post_votes WHERE post_id = ? AND user_id = ?", post.ID, userID).Scan(&post.UserVote)
+		if err == sql.ErrNoRows {
+			post.UserVote = 0
+		} else if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, post)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
+func (m *PostModel) GetCommentsByUserIDForPost(postID, userID int) ([]*Comment, error) {
+	stmt := `
+		SELECT comments.id, comments.post_id, comments.user_id, comments.created, comments.content
+		FROM comments
+		WHERE comments.post_id = ? AND comments.user_id = ?
+		ORDER BY comments.created ASC
+	`
+	rows, err := m.DB.Query(stmt, postID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []*Comment
+	for rows.Next() {
+		comment := &Comment{}
+		err := rows.Scan(&comment.ID, &comment.PostID, &comment.UserID, &comment.Created, &comment.Content)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+
+	return comments, nil
 }
