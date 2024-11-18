@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type TemplateData struct {
@@ -17,9 +16,12 @@ type TemplateData struct {
 	FilterMyPosts    bool
 	FilterLikedPosts bool
 	FilterComments   bool
+	SortOrder        string
+	SortBy           string
 }
 
 func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, commentModel *models.CommentModel, db *sql.DB) {
+
 	userID, err := GetSessionUserID(r, db)
 	loggedIn := err == nil
 
@@ -34,7 +36,10 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 
 	filterMyPosts := r.URL.Query().Get("myPosts") == "1" && loggedIn
 	filterLikedPosts := r.URL.Query().Get("likedPosts") == "1" && loggedIn
-	filterComments := r.URL.Query().Get("filter") == "comments" && loggedIn
+	filterComments := r.URL.Query().Get("commentedPosts") == "1" && loggedIn
+
+	sortOrder := r.URL.Query().Get("sort")
+	sortBy := r.URL.Query().Get("sortBy")
 
 	var posts []*models.Post
 	activeCategoryID := 0
@@ -62,7 +67,11 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 		if categoryIDStr != "" {
 			categoryID, convErr := strconv.Atoi(categoryIDStr)
 			if convErr == nil {
-				posts, err = postModel.GetByCategoryID(categoryID, userID)
+				if sortOrder == "asc" {
+					posts, err = postModel.GetByCategoryIDAsc(categoryID, userID)
+				} else {
+					posts, err = postModel.GetByCategoryID(categoryID, userID)
+				}
 				activeCategoryID = categoryID
 				if err != nil {
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -73,7 +82,15 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 				return
 			}
 		} else {
-			posts, err = postModel.Latest(userID)
+			if sortBy == "likes" {
+				posts, err = postModel.MostLiked(userID)
+			} else if sortBy == "comments" {
+				posts, err = postModel.MostCommented(userID)
+			} else if sortOrder == "asc" {
+				posts, err = postModel.Oldest(userID)
+			} else {
+				posts, err = postModel.Latest(userID)
+			}
 			if err != nil {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
@@ -97,19 +114,15 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 		}
 	}
 
-	funcMap := template.FuncMap{
-		"split": func(input string) []string {
-			return strings.Split(input, "\n")
-		},
-	}
-
 	files := []string{
 		"./ui/templates/home.html",
+		"./ui/templates/header.html",
+		"./ui/templates/footer.html",
 		"./ui/templates/left_sidebar.html",
 		"./ui/templates/right_sidebar.html",
 	}
 
-	ts, err := template.New("home.html").Funcs(funcMap).ParseFiles(files...)
+	ts, err := template.New("home.html").ParseFiles(files...)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -123,6 +136,8 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 		FilterMyPosts:    filterMyPosts,
 		FilterLikedPosts: filterLikedPosts,
 		FilterComments:   filterComments,
+		SortOrder:        sortOrder,
+		SortBy:           sortBy,
 	}
 
 	if err := ts.Execute(w, data); err != nil {

@@ -15,7 +15,7 @@ func ToggleVote(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	userModel := &models.UserModel{DB: db}
 	userID, err := userModel.GetSessionUserIDFromRequest(r)
-	if err != nil {
+	if err != nil || userID == 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

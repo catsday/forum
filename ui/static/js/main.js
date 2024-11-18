@@ -31,24 +31,6 @@ function showAlert(message) {
     }, 3000);
 }
 
-function filterByCategory(categoryID) {
-    const buttons = document.querySelectorAll(".sidebar-item button");
-    buttons.forEach(button => button.classList.remove("active"));
-
-    const activeButton = document.querySelector(`button[onclick="filterByCategory(${categoryID})"]`);
-    if (activeButton) activeButton.classList.add("active");
-
-    window.location.href = `/?categoryID=${categoryID}`;
-}
-
-function resetFilter() {
-    window.location.href = "/";
-}
-
-function filterMyPosts() {
-    window.location.href = "/?myPosts=1";
-}
-
 function toggleVote(postID, voteType) {
     fetch("/toggle-vote", {
         method: "POST",
@@ -58,17 +40,17 @@ function toggleVote(postID, voteType) {
         body: `postID=${postID}&voteType=${voteType}`
     })
         .then(response => {
-            if (response.ok) {
+            if (response.status === 401) {
+                window.location.href = "/forum/login";
+            } else if (response.ok) {
                 window.location.reload();
             } else {
-                alert("You must be logged in to vote.");
+                alert("An error occurred while attempting to vote.");
             }
         })
-        .catch(error => console.error("Error:", error));
-}
-
-function filterLikedPosts() {
-    window.location.href = "/?likedPosts=1";
+        .catch(() => {
+            alert("An error occurred while attempting to vote.");
+        });
 }
 
 const form = document.querySelector("form[action='/forum/create']");
@@ -83,3 +65,70 @@ if (form) {
         }
     });
 }
+
+function filterByCategory(category) {
+    switch (category) {
+        case 1:
+            window.location.href = "/forum/technology";
+            break;
+        case 2:
+            window.location.href = "/forum/entertainment";
+            break;
+        case 3:
+            window.location.href = "/forum/sports";
+            break;
+        case 4:
+            window.location.href = "/forum/education";
+            break;
+        case 5:
+            window.location.href = "/forum/health";
+            break;
+        default:
+            window.location.href = "/";
+    }
+}
+
+function filterLikedPosts() {
+    window.location.href = "/forum/liked";
+}
+
+function filterMyPosts() {
+    window.location.href = "/forum/posted";
+}
+
+function filterComments() {
+    window.location.href = "/forum/commented";
+}
+
+function resetFilter() {
+    window.location.href = "/";
+}
+
+function sortPosts(order) {
+    let url = new URL(window.location.href);
+
+    switch (order) {
+        case 'newest':
+            url.searchParams.set("sort", "desc");
+            url.searchParams.delete("sortBy");
+            break;
+        case 'oldest':
+            url.searchParams.set("sort", "asc");
+            url.searchParams.delete("sortBy");
+            break;
+        case 'likes':
+            url.searchParams.set("sortBy", "likes");
+            url.searchParams.delete("sort");
+            break;
+        case 'comments':
+            url.searchParams.set("sortBy", "comments");
+            url.searchParams.delete("sort");
+            break;
+    }
+
+    window.location.href = url.toString();
+}
+
+
+
+

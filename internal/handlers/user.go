@@ -13,6 +13,20 @@ import (
 
 func Login(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		files := []string{
+			"./ui/templates/login.html",
+			"./ui/templates/header.html",
+			"./ui/templates/footer.html",
+			"./ui/templates/left_sidebar.html",
+			"./ui/templates/right_sidebar.html",
+		}
+
+		ts, err := template.ParseFiles(files...)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
 		if r.Method == http.MethodPost {
 			email := r.FormValue("email")
 			password := r.FormValue("password")
@@ -39,13 +53,10 @@ func Login(db *sql.DB) http.HandlerFunc {
 			})
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 		} else {
-			files := []string{"./ui/templates/login.html"}
-			ts, err := template.ParseFiles(files...)
+			err = ts.Execute(w, nil)
 			if err != nil {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
 			}
-			ts.Execute(w, nil)
 		}
 	}
 }
@@ -66,14 +77,25 @@ func emailExists(db *sql.DB, email string) bool {
 }
 
 func SignUp(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	files := []string{
+		"./ui/templates/signup.html",
+		"./ui/templates/header.html",
+		"./ui/templates/footer.html",
+		"./ui/templates/left_sidebar.html",
+		"./ui/templates/right_sidebar.html",
+	}
+
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	if r.Method == http.MethodGet {
-		files := []string{"./ui/templates/signup.html"}
-		ts, err := template.ParseFiles(files...)
+		err = ts.Execute(w, nil)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
 		}
-		ts.Execute(w, nil)
 	} else if r.Method == http.MethodPost {
 		r.ParseForm()
 		username := r.FormValue("username")
@@ -156,35 +178,45 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var username, email string
 	err = db.QueryRow("SELECT username, email FROM users WHERE id = ?", userID).Scan(&username, &email)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		ID       int
-		Username string
-		Email    string
+		ID               int
+		Username         string
+		Email            string
+		LoggedIn         bool
+		FilterMyPosts    bool
+		FilterLikedPosts bool
+		FilterComments   bool
+		ActiveCategoryID int
 	}{
-		ID:       userID,
-		Username: username,
-		Email:    email,
+		ID:               userID,
+		Username:         username,
+		Email:            email,
+		LoggedIn:         true,
+		FilterMyPosts:    false,
+		FilterLikedPosts: false,
+		FilterComments:   false,
+		ActiveCategoryID: 0,
 	}
 
-	files := []string{"./ui/templates/profile.html"}
+	files := []string{
+		"./ui/templates/profile.html",
+		"./ui/templates/footer.html",
+		"./ui/templates/left_sidebar.html",
+		"./ui/templates/right_sidebar.html",
+	}
+
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		log.Printf("Error parsing profile template files: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	err = ts.Execute(w, data)
 	if err != nil {
-		log.Printf("Error executing profile template: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }

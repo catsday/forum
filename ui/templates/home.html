@@ -7,13 +7,8 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-<header>
-    <div class="container">
-        <div id="branding">
-            <h1><a href="/">FORUM</a></h1>
-        </div>
-    </div>
-</header>
+
+{{template "header" .}}
 
 <main>
     <div class="main-container">
@@ -34,17 +29,7 @@
                     </div>
 
                     <div class="post-content">
-                        {{ $paragraphs := split .Content }}
-                        {{ range $index, $paragraph := $paragraphs }}
-                        {{ if lt $index 3 }}
-                        <p>{{ $paragraph }}</p>
-                        {{ else }}
-                        {{ break }}
-                        {{ end }}
-                        {{ end }}
-                        {{ if gt (len $paragraphs) 3 }}
-                        <p>...</p>
-                        {{ end }}
+                        <pre class="content-preview">{{.Content}}</pre>
                     </div>
 
                     {{if $.FilterComments}}
@@ -89,17 +74,21 @@
                 {{end}}
             </div>
             <div class="separator-line"></div>
+
         </div>
+
 
         {{template "right_sidebar.html" .}}
     </div>
 </main>
+<div class="sort-buttons">
+    <button onclick="sortPosts('newest')" id="sort-newest" class="sort-button">Newest</button>
+    <button onclick="sortPosts('oldest')" id="sort-oldest" class="sort-button">Oldest</button>
+    <button onclick="sortPosts('likes')" id="sort-likes" class="sort-button">Most Liked</button>
+    <button onclick="sortPosts('comments')" id="sort-comments" class="sort-button">Most Commented</button>
+</div>
+{{template "footer" .}}
 
-<footer>
-    <div class="container">
-        <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
-    </div>
-</footer>
 <script src="/static/js/main.js"></script>
 </body>
 </html>

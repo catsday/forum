@@ -7,11 +7,8 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-<header>
-    <div class="header-content">
-        <h1><a href="/">FORUM</a></h1>
-    </div>
-</header>
+
+{{template "header" .}}
 
 <main class="main-container">
     {{template "left_sidebar.html" .}}
@@ -24,7 +21,7 @@
                 <span class="post-date">on {{.Post.Created.Format "02 Jan 2006 at 15:04"}}</span>
             </div>
             <div class="post-content">
-                {{range split .Post.Content}}<p>{{.}}</p>{{end}}
+                <pre class="content-preserve">{{.Post.Content}}</pre>
             </div>
             <div class="post-footer">
                 <div class="post-categories">
@@ -41,7 +38,6 @@
                     </button>
                 </div>
             </div>
-
 
             <div class="comments-list user-comments">
                 {{if .Comments}}
@@ -60,15 +56,18 @@
                 {{end}}
             </div>
 
-
             {{if .LoggedIn}}
             <form action="/post/{{.Post.ID}}/comment" method="POST" class="comment-form">
                 <textarea name="content" rows="3" placeholder="Add a comment..." required></textarea>
                 <button type="submit">Post Comment</button>
             </form>
             {{else}}
-            <p><a href="/forum/login">Log in</a> to post a comment.</p>
+            <div class="login-to-comment">
+                <p>You need to <a href="/forum/login">Log in</a> to post a comment.</p>
+            </div>
             {{end}}
+
+
         </div>
 
         <div class="separator-line"></div>
@@ -77,11 +76,7 @@
     {{template "right_sidebar.html" .}}
 </main>
 
-<footer>
-    <div class="footer-content">
-        <p>Powered by <a href="https://golang.org" target="_blank">Go</a></p>
-    </div>
-</footer>
+{{template "footer" .}}
 
 <script src="/static/js/main.js"></script>
 </body>

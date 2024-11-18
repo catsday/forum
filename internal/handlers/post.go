@@ -80,19 +80,15 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		FilterComments:   false,
 	}
 
-	funcMap := template.FuncMap{
-		"split": func(input string) []string {
-			return strings.Split(input, "\n")
-		},
-	}
-
 	files := []string{
 		"./ui/templates/view.html",
+		"./ui/templates/header.html",
+		"./ui/templates/footer.html",
 		"./ui/templates/left_sidebar.html",
 		"./ui/templates/right_sidebar.html",
 	}
 
-	ts, err := template.New("view.html").Funcs(funcMap).ParseFiles(files...)
+	ts, err := template.New("view.html").ParseFiles(files...)
 	if err != nil {
 		log.Printf("Error parsing template files: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -106,14 +102,54 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 }
 
-func PostCreateForm(w http.ResponseWriter, r *http.Request) {
-	files := []string{"./ui/templates/create.html"}
+func PostCreateForm(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	userModel := &models.UserModel{DB: db}
+	userID, err := userModel.GetSessionUserIDFromRequest(r)
+	loggedIn := err == nil
+	var username string
+
+	if loggedIn {
+		err = db.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&username)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	data := struct {
+		LoggedIn         bool
+		Username         string
+		FilterMyPosts    bool
+		FilterLikedPosts bool
+		FilterComments   bool
+		ActiveCategoryID int
+	}{
+		LoggedIn:         loggedIn,
+		Username:         username,
+		FilterMyPosts:    false,
+		FilterLikedPosts: false,
+		FilterComments:   false,
+		ActiveCategoryID: 0,
+	}
+
+	files := []string{
+		"./ui/templates/create.html",
+		"./ui/templates/header.html",
+		"./ui/templates/footer.html",
+		"./ui/templates/left_sidebar.html",
+		"./ui/templates/right_sidebar.html",
+	}
+
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	ts.Execute(w, nil)
+
+	err = ts.Execute(w, data)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 func PostCreate(w http.ResponseWriter, r *http.Request, db *sql.DB) {

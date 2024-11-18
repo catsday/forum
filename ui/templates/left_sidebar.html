@@ -1,7 +1,7 @@
 <aside class="left-sidebar">
   {{if .LoggedIn}}
   <div class="sidebar-item">
-    <button onclick="window.location.href='/?myPosts=1'" class="my-posts-button {{if .FilterMyPosts}}active-filter{{end}}">
+    <button onclick="filterMyPosts()" class="my-posts-button {{if .FilterMyPosts}}active-filter{{end}}">
       My Posts
     </button>
   </div>
@@ -22,6 +22,7 @@
     <button onclick="filterByCategory(4)" class="{{if eq .ActiveCategoryID 4}}active-filter{{end}}">Education</button>
     <button onclick="filterByCategory(5)" class="{{if eq .ActiveCategoryID 5}}active-filter{{end}}">Health</button>
   </div>
+
 
   <div class="sidebar-item">
     <button onclick="resetFilter()" class="reset-button">Reset</button>

@@ -7,22 +7,30 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
+
 <header>
     <div class="container">
         <h1>Profile Page</h1>
     </div>
 </header>
-<main>
-    <div class="container">
-        <h2>Welcome, {{.Username}}!</h2>
-        <p>Email: {{.Email}}</p>
-        <p>User ID: {{.ID}}</p>
+
+<main class="main-container">
+    {{template "left_sidebar.html" .}}
+
+    <div class="main-content">
+        <div class="container">
+            <h2>Welcome, {{.Username}}!</h2>
+            <p>Email: {{.Email}}</p>
+            <p>User ID: {{.ID}}</p>
+        </div>
+        <div class="separator-line"></div>
     </div>
+
+    {{template "right_sidebar.html" .}}
 </main>
-<footer>
-    <div class="container">
-        <p>Powered by Go</p>
-    </div>
-</footer>
+
+{{template "footer" .}}
+<script src="/static/js/main.js"></script>
+
 </body>
 </html>
