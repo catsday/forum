@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"forum/internal/models"
 	"golang.org/x/crypto/bcrypt"
 	"html/template"
@@ -10,6 +11,38 @@ import (
 	"regexp"
 	"time"
 )
+
+type AdminUser struct {
+	ID                       int
+	Username                 string
+	Email                    string
+	PostCount                int
+	CommentCount             int
+	LikedPosts               int
+	DislikedPosts            int
+	LikeDislikeRatioPosts    float64
+	LikeDislikeRatioComments float64
+	IsBanned                 bool
+}
+
+type ProfileData struct {
+	ID                       int
+	Username                 string
+	Email                    string
+	PostCount                int
+	CommentCount             int
+	LikedPosts               int
+	DislikedPosts            int
+	LikeDislikeRatioPosts    float64
+	LikeDislikeRatioComments float64
+	IsAdmin                  bool
+	LoggedIn                 bool
+	FilterMyPosts            bool
+	FilterLikedPosts         bool
+	FilterComments           bool
+	ActiveCategoryID         int
+	Users                    []AdminUser
+}
 
 func Login(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +56,7 @@ func Login(db *sql.DB) http.HandlerFunc {
 
 		ts, err := template.ParseFiles(files...)
 		if err != nil {
+			log.Printf("Error parsing login page templates: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
@@ -30,16 +64,43 @@ func Login(db *sql.DB) http.HandlerFunc {
 		if r.Method == http.MethodPost {
 			email := r.FormValue("email")
 			password := r.FormValue("password")
-			userModel := &models.UserModel{DB: db}
 
+			var isBanned bool
+			err = db.QueryRow("SELECT is_banned FROM users WHERE email = ?", email).Scan(&isBanned)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					log.Printf("Login attempt with non-existent email: %s", email)
+					http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+					return
+				}
+				log.Printf("Database error during is_banned check for email %s: %v", email, err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+
+			if isBanned {
+				log.Printf("Banned user attempted login: %s", email)
+				w.Header().Set("Content-Type", "text/html")
+				fmt.Fprintln(w, `<script>showAlert('Your account is banned. Please contact support.');</script>`)
+				err = ts.Execute(w, nil)
+				if err != nil {
+					log.Printf("Error rendering login page for banned user: %v", err)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				}
+				return
+			}
+
+			userModel := &models.UserModel{DB: db}
 			userID, err := userModel.Authenticate(email, password)
 			if err != nil {
-				http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+				log.Printf("Failed login attempt for email %s: %v", email, err)
+				http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 				return
 			}
 
 			sessionID, err := userModel.CreateSession(userID)
 			if err != nil {
+				log.Printf("Error creating session for user ID %d: %v", userID, err)
 				http.Error(w, "Failed to create session", http.StatusInternalServerError)
 				return
 			}
@@ -51,10 +112,12 @@ func Login(db *sql.DB) http.HandlerFunc {
 				HttpOnly: true,
 				Path:     "/",
 			})
+			log.Printf("User logged in successfully: email=%s, userID=%d", email, userID)
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 		} else {
 			err = ts.Execute(w, nil)
 			if err != nil {
+				log.Printf("Error rendering login page: %v", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}
@@ -171,6 +234,7 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	userID, err := userModel.GetSessionUserIDFromRequest(r)
 	if err != nil || userID == 0 {
+		log.Printf("UserProfile: Unauthorized access attempt. Error: %v", err)
 		http.Redirect(w, r, "/forum/login", http.StatusSeeOther)
 		return
 	}
@@ -178,32 +242,107 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var username, email string
 	err = db.QueryRow("SELECT username, email FROM users WHERE id = ?", userID).Scan(&username, &email)
 	if err != nil {
+		log.Printf("UserProfile: Failed to fetch user data for ID %d. Error: %v", userID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	data := struct {
-		ID               int
-		Username         string
-		Email            string
-		LoggedIn         bool
-		FilterMyPosts    bool
-		FilterLikedPosts bool
-		FilterComments   bool
-		ActiveCategoryID int
-	}{
-		ID:               userID,
-		Username:         username,
-		Email:            email,
-		LoggedIn:         true,
-		FilterMyPosts:    false,
-		FilterLikedPosts: false,
-		FilterComments:   false,
-		ActiveCategoryID: 0,
+	isAdmin := email == "admin@gmail.com" && username == "Admin"
+
+	var postCount, commentCount, likedPosts, dislikedPosts int
+	var likeDislikeRatioPosts, likeDislikeRatioComments float64
+
+	err = db.QueryRow("SELECT COUNT(*) FROM posts WHERE user_id = ?", userID).Scan(&postCount)
+	if err != nil {
+		log.Printf("UserProfile: Failed to count posts for user ID %d. Error: %v", userID, err)
+		postCount = 0
+	}
+
+	err = db.QueryRow("SELECT COUNT(*) FROM comments WHERE user_id = ?", userID).Scan(&commentCount)
+	if err != nil {
+		log.Printf("UserProfile: Failed to count comments for user ID %d. Error: %v", userID, err)
+		commentCount = 0
+	}
+
+	err = db.QueryRow("SELECT COUNT(*) FROM post_votes WHERE user_id = ? AND vote_type = 1", userID).Scan(&likedPosts)
+	if err != nil {
+		log.Printf("UserProfile: Failed to count liked posts for user ID %d. Error: %v", userID, err)
+		likedPosts = 0
+	}
+
+	err = db.QueryRow("SELECT COUNT(*) FROM post_votes WHERE user_id = ? AND vote_type = -1", userID).Scan(&dislikedPosts)
+	if err != nil {
+		log.Printf("UserProfile: Failed to count disliked posts for user ID %d. Error: %v", userID, err)
+		dislikedPosts = 0
+	}
+
+	err = db.QueryRow("SELECT COALESCE(AVG(vote_type), 0) FROM post_votes WHERE user_id = ?", userID).Scan(&likeDislikeRatioPosts)
+	if err != nil {
+		log.Printf("UserProfile: Failed to calculate like/dislike ratio for posts for user ID %d. Error: %v", userID, err)
+		likeDislikeRatioPosts = 0
+	}
+
+	err = db.QueryRow("SELECT COALESCE(AVG(vote_type), 0) FROM comments c JOIN post_votes pv ON c.post_id = pv.post_id WHERE c.user_id = ?", userID).Scan(&likeDislikeRatioComments)
+	if err != nil {
+		log.Printf("UserProfile: Failed to calculate like/dislike ratio for comments for user ID %d. Error: %v", userID, err)
+		likeDislikeRatioComments = 0
+	}
+
+	var users []AdminUser
+	if isAdmin {
+		rows, err := db.Query(`
+			SELECT 
+				u.id, u.username, u.email, u.is_banned,
+				(SELECT COUNT(*) FROM posts WHERE user_id = u.id) AS post_count,
+				(SELECT COUNT(*) FROM comments WHERE user_id = u.id) AS comment_count,
+				(SELECT COUNT(*) FROM post_votes WHERE user_id = u.id AND vote_type = 1) AS liked_posts,
+				(SELECT COUNT(*) FROM post_votes WHERE user_id = u.id AND vote_type = -1) AS disliked_posts,
+				COALESCE((SELECT AVG(vote_type) FROM post_votes WHERE user_id = u.id), 0) AS like_dislike_ratio_posts,
+				COALESCE((SELECT AVG(vote_type) FROM comments c JOIN post_votes pv ON c.post_id = pv.post_id WHERE c.user_id = u.id), 0) AS like_dislike_ratio_comments
+			FROM users u
+		`)
+		if err != nil {
+			log.Printf("UserProfile: Failed to fetch user list for admin. Error: %v", err)
+		} else {
+			defer rows.Close()
+			for rows.Next() {
+				var user AdminUser
+				if err := rows.Scan(
+					&user.ID, &user.Username, &user.Email, &user.IsBanned,
+					&user.PostCount, &user.CommentCount,
+					&user.LikedPosts, &user.DislikedPosts,
+					&user.LikeDislikeRatioPosts, &user.LikeDislikeRatioComments,
+				); err != nil {
+					log.Printf("UserProfile: Error scanning user data: %v", err)
+					continue
+				}
+				users = append(users, user)
+			}
+		}
+	}
+
+	data := ProfileData{
+		ID:                       userID,
+		Username:                 username,
+		Email:                    email,
+		PostCount:                postCount,
+		CommentCount:             commentCount,
+		LikedPosts:               likedPosts,
+		DislikedPosts:            dislikedPosts,
+		LikeDislikeRatioPosts:    likeDislikeRatioPosts,
+		LikeDislikeRatioComments: likeDislikeRatioComments,
+		IsAdmin:                  isAdmin,
+		LoggedIn:                 true,
+		FilterMyPosts:            false,
+		FilterLikedPosts:         false,
+		FilterComments:           false,
+		ActiveCategoryID:         0,
+		Users:                    users,
 	}
 
 	files := []string{
 		"./ui/templates/profile.html",
+		"./ui/templates/header.html",
 		"./ui/templates/footer.html",
 		"./ui/templates/left_sidebar.html",
 		"./ui/templates/right_sidebar.html",
@@ -211,14 +350,19 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
+		log.Printf("UserProfile: Failed to parse templates for user ID %d. Error: %v", userID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	err = ts.Execute(w, data)
 	if err != nil {
+		log.Printf("UserProfile: Failed to execute template for user ID %d. Error: %v", userID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
+
+	log.Printf("UserProfile: Successfully rendered profile page for user ID %d.", userID)
 }
 
 func GetSessionUserID(r *http.Request, db *sql.DB) (int, error) {
@@ -228,4 +372,39 @@ func GetSessionUserID(r *http.Request, db *sql.DB) (int, error) {
 	}
 	userModel := &models.UserModel{DB: db}
 	return userModel.GetSessionUserID(cookie.Value)
+}
+
+func ToggleBanStatus(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		http.Error(w, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var isBanned bool
+	err := db.QueryRow("SELECT is_banned FROM users WHERE id = ?", userID).Scan(&isBanned)
+	if err == sql.ErrNoRows {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("ToggleBanStatus: Error fetching user status: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	newStatus := !isBanned
+	_, err = db.Exec("UPDATE users SET is_banned = ? WHERE id = ?", newStatus, userID)
+	if err != nil {
+		log.Printf("ToggleBanStatus: Error updating ban status: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	log.Printf("ToggleBanStatus: Updated ban status for user ID %s to %t", userID, newStatus)
 }

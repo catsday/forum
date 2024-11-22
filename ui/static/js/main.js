@@ -104,31 +104,137 @@ function resetFilter() {
     window.location.href = "/";
 }
 
-function sortPosts(order) {
-    let url = new URL(window.location.href);
-
-    switch (order) {
-        case 'newest':
-            url.searchParams.set("sort", "desc");
-            url.searchParams.delete("sortBy");
-            break;
-        case 'oldest':
-            url.searchParams.set("sort", "asc");
-            url.searchParams.delete("sortBy");
-            break;
-        case 'likes':
-            url.searchParams.set("sortBy", "likes");
-            url.searchParams.delete("sort");
-            break;
-        case 'comments':
-            url.searchParams.set("sortBy", "comments");
-            url.searchParams.delete("sort");
-            break;
-    }
-
-    window.location.href = url.toString();
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'block';
 }
 
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
 
+function openUserProfile(button) {
+    document.getElementById('profile-username').textContent = button.getAttribute('data-user-username');
+    document.getElementById('profile-email').textContent = button.getAttribute('data-user-email');
+    document.getElementById('profile-id').textContent = button.getAttribute('data-user-id');
+    document.getElementById('profile-postcount').textContent = button.getAttribute('data-user-postcount');
+    document.getElementById('profile-commentcount').textContent = button.getAttribute('data-user-commentcount');
+    document.getElementById('profile-likedposts').textContent = button.getAttribute('data-user-likedposts');
+    document.getElementById('profile-dislikedposts').textContent = button.getAttribute('data-user-dislikedposts');
+    document.getElementById('profile-ratioposts').textContent = button.getAttribute('data-user-ratioposts');
+    document.getElementById('profile-ratiocomments').textContent = button.getAttribute('data-user-ratiocomments');
 
+    openModal('view-profile-modal');
+}
 
+function toggleBan(userID, button) {
+    const isBanned = button.dataset.isBanned === "true";
+    const action = isBanned ? "unban" : "ban";
+
+    if (confirm(`Are you sure you want to ${action} this user?`)) {
+        fetch(`/forum/toggle-ban?userID=${userID}`, { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    alert(`User has been ${action}ned successfully.`);
+                    button.textContent = isBanned ? "Ban" : "Unban";
+                    button.dataset.isBanned = !isBanned;
+                } else {
+                    alert("Failed to update user status.");
+                }
+            });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const banButtons = document.querySelectorAll(".ban-button");
+
+    banButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const userID = button.dataset.userId;
+            const action = button.textContent.trim();
+            const confirmMessage = action === "Ban"
+                ? "Are you sure you want to ban this user?"
+                : "Are you sure you want to unban this user?";
+
+            showAlertWithConfirmationBan(confirmMessage, () => {
+                fetch(`/forum/toggle-ban?userID=${userID}`, { method: "POST" })
+                    .then((response) => {
+                        if (response.ok) {
+                            button.textContent = action === "Ban" ? "Unban" : "Ban";
+                            const resultMessage = action === "Ban"
+                                ? "User has been banned."
+                                : "User has been unbanned.";
+                            showAlertBan(resultMessage);
+                        } else {
+                            showAlertBan("Failed to update ban status. Please try again.");
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error updating ban status:", error);
+                        showAlertBan("An error occurred. Please try again.");
+                    });
+            });
+        });
+    });
+});
+
+function showAlertBan(message) {
+    if (document.querySelector(".alert-box-ban")) return;
+
+    const overlay = document.createElement("div");
+    overlay.classList.add("alert-overlay-ban");
+
+    const alertBox = document.createElement("div");
+    alertBox.classList.add("alert-box-ban");
+    alertBox.textContent = message;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(alertBox);
+
+    setTimeout(() => {
+        alertBox.remove();
+        overlay.remove();
+    }, 1000);
+}
+
+function showAlertWithConfirmationBan(message, onConfirm) {
+    document.body.style.overflow = "hidden";
+
+    const overlay = document.createElement("div");
+    overlay.classList.add("alert-overlay-ban");
+
+    const alertBox = document.createElement("div");
+    alertBox.classList.add("alert-box-ban", "alert-confirm-ban");
+
+    const alertMessage = document.createElement("p");
+    alertMessage.textContent = message;
+
+    const buttonGroup = document.createElement("div");
+    buttonGroup.classList.add("alert-button-group-ban");
+
+    const confirmButton = document.createElement("button");
+    confirmButton.textContent = "Yes";
+    confirmButton.classList.add("alert-confirm-button-ban");
+    confirmButton.addEventListener("click", () => {
+        document.body.style.overflow = "";
+        overlay.remove();
+        alertBox.remove();
+        onConfirm();
+    });
+
+    const cancelButton = document.createElement("button");
+    cancelButton.textContent = "No";
+    cancelButton.classList.add("alert-cancel-button-ban");
+    cancelButton.addEventListener("click", () => {
+        document.body.style.overflow = "";
+        overlay.remove();
+        alertBox.remove();
+    });
+
+    buttonGroup.appendChild(confirmButton);
+    buttonGroup.appendChild(cancelButton);
+    alertBox.appendChild(alertMessage);
+    alertBox.appendChild(buttonGroup);
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(alertBox);
+}

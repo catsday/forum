@@ -81,5 +81,9 @@ func Router(db *sql.DB) *http.ServeMux {
 		handlers.ToggleVote(w, r, db)
 	})
 
+	mux.HandleFunc("/forum/toggle-ban", func(w http.ResponseWriter, r *http.Request) {
+		handlers.ToggleBanStatus(w, r, db)
+	})
+
 	return mux
 }

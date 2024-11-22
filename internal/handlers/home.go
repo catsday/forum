@@ -16,12 +16,9 @@ type TemplateData struct {
 	FilterMyPosts    bool
 	FilterLikedPosts bool
 	FilterComments   bool
-	SortOrder        string
-	SortBy           string
 }
 
 func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, commentModel *models.CommentModel, db *sql.DB) {
-
 	userID, err := GetSessionUserID(r, db)
 	loggedIn := err == nil
 
@@ -37,9 +34,6 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 	filterMyPosts := r.URL.Query().Get("myPosts") == "1" && loggedIn
 	filterLikedPosts := r.URL.Query().Get("likedPosts") == "1" && loggedIn
 	filterComments := r.URL.Query().Get("commentedPosts") == "1" && loggedIn
-
-	sortOrder := r.URL.Query().Get("sort")
-	sortBy := r.URL.Query().Get("sortBy")
 
 	var posts []*models.Post
 	activeCategoryID := 0
@@ -67,11 +61,7 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 		if categoryIDStr != "" {
 			categoryID, convErr := strconv.Atoi(categoryIDStr)
 			if convErr == nil {
-				if sortOrder == "asc" {
-					posts, err = postModel.GetByCategoryIDAsc(categoryID, userID)
-				} else {
-					posts, err = postModel.GetByCategoryID(categoryID, userID)
-				}
+				posts, err = postModel.GetByCategoryID(categoryID, userID)
 				activeCategoryID = categoryID
 				if err != nil {
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -82,15 +72,7 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 				return
 			}
 		} else {
-			if sortBy == "likes" {
-				posts, err = postModel.MostLiked(userID)
-			} else if sortBy == "comments" {
-				posts, err = postModel.MostCommented(userID)
-			} else if sortOrder == "asc" {
-				posts, err = postModel.Oldest(userID)
-			} else {
-				posts, err = postModel.Latest(userID)
-			}
+			posts, err = postModel.Latest(userID)
 			if err != nil {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
@@ -136,8 +118,6 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 		FilterMyPosts:    filterMyPosts,
 		FilterLikedPosts: filterLikedPosts,
 		FilterComments:   filterComments,
-		SortOrder:        sortOrder,
-		SortBy:           sortBy,
 	}
 
 	if err := ts.Execute(w, data); err != nil {

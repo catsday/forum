@@ -3,34 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile</title>
+    <title>Admin Profile</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
 
-<header>
-    <div class="container">
-        <h1>Profile Page</h1>
-    </div>
-</header>
+{{template "header" .}}
 
 <main class="main-container">
     {{template "left_sidebar.html" .}}
 
     <div class="main-content">
-        <div class="container">
-            <h2>Welcome, {{.Username}}!</h2>
-            <p>Email: {{.Email}}</p>
-            <p>User ID: {{.ID}}</p>
+        <div class="profile-container">
+            <h2 class="profile-welcome">Welcome, {{.Username}}!</h2>
+            <div class="profile-info">
+                <p><strong>Email:</strong> {{.Email}}</p>
+                <p><strong>User ID:</strong> {{.ID}}</p>
+            </div>
+            <div class="profile-stats">
+                <h3 class="section-title">Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value">{{.PostCount}}</span>
+                        <span class="stat-label">Posts Created</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{.CommentCount}}</span>
+                        <span class="stat-label">Comments Made</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{.LikedPosts}}</span>
+                        <span class="stat-label">Posts Liked</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{.DislikedPosts}}</span>
+                        <span class="stat-label">Posts Disliked</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{printf "%.2f" .LikeDislikeRatioPosts}}</span>
+                        <span class="stat-label">Like/Dislike Ratio (Posts)</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{printf "%.2f" .LikeDislikeRatioComments}}</span>
+                        <span class="stat-label">Like/Dislike Ratio (Comments)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="profile-actions">
+                <h3 class="section-title">Actions</h3>
+                <div class="button-group">
+                    <button class="profile-button" onclick="openModal('change-password-modal')">Change Password</button>
+                </div>
+            </div>
         </div>
         <div class="separator-line"></div>
+
+        <div class="user-table-container">
+            <h3 class="section-title">Manage Users</h3>
+            <table class="user-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{range .Users}}
+                <tr>
+                    <td>{{.ID}}</td>
+                    <td>{{.Username}}</td>
+                    <td>{{.Email}}</td>
+                    <td class="action-buttons">
+                        <button class="view-button"
+                                data-user-id="{{.ID}}"
+                                data-user-username="{{.Username}}"
+                                data-user-email="{{.Email}}"
+                                data-user-postcount="{{.PostCount}}"
+                                data-user-commentcount="{{.CommentCount}}"
+                                data-user-likedposts="{{.LikedPosts}}"
+                                data-user-dislikedposts="{{.DislikedPosts}}"
+                                data-user-ratioposts="{{printf "%.2f" .LikeDislikeRatioPosts}}"
+                        data-user-ratiocomments="{{printf "%.2f" .LikeDislikeRatioComments}}"
+                        onclick="openUserProfile(this)">
+                        View Profile
+                        </button>
+                        <button class="ban-button" data-user-id="{{.ID}}">
+                            {{if .IsBanned}}Unban{{else}}Ban{{end}}
+                        </button>
+
+                    </td>
+                </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="view-profile-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('view-profile-modal')">&times;</span>
+                <h2 class="modal-title">User Profile</h2>
+                <div class="user-info">
+                    <p><strong>Username:</strong> <span id="profile-username"></span></p>
+                    <p><strong>Email:</strong> <span id="profile-email"></span></p>
+                    <p><strong>ID:</strong> <span id="profile-id"></span></p>
+                </div>
+                <div class="separator-line"></div>
+                <div class="user-stats">
+                    <h3>Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Posts Created:</span>
+                            <span id="profile-postcount" class="stat-value"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Comments Made:</span>
+                            <span id="profile-commentcount" class="stat-value"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Posts Liked:</span>
+                            <span id="profile-likedposts" class="stat-value"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Posts Disliked:</span>
+                            <span id="profile-dislikedposts" class="stat-value"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Like/Dislike Ratio (Posts):</span>
+                            <span id="profile-ratioposts" class="stat-value"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Like/Dislike Ratio (Comments):</span>
+                            <span id="profile-ratiocomments" class="stat-value"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
     </div>
 
     {{template "right_sidebar.html" .}}
 </main>
 
-{{template "footer" .}}
-<script src="/static/js/main.js"></script>
+<div id="change-password-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('change-password-modal')">&times;</span>
+        <h2>Change Password</h2>
+        <form method="POST" action="/forum/profile">
+            <label for="current-password">Current Password:</label>
+            <input type="password" id="current-password" name="current-password" required>
+            <label for="new-password">New Password:</label>
+            <input type="password" id="new-password" name="new-password" required>
+            <label for="confirm-password">Confirm New Password:</label>
+            <input type="password" id="confirm-password" name="confirm-password" required>
+            <button type="submit" class="modal-button">Update Password</button>
+        </form>
+    </div>
+</div>
 
+{{template "footer" .}}
+
+<script src="/static/js/main.js"></script>
 </body>
 </html>

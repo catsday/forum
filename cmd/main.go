@@ -34,7 +34,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "4000"
+		port = "8080"
 	}
 	log.Printf("Starting server on : http://%s:%s", "0.0.0.0", port)
 	err = http.ListenAndServe(":"+port, mux)
