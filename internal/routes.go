@@ -84,6 +84,12 @@ func Router(db *sql.DB) *http.ServeMux {
 	mux.HandleFunc("/forum/toggle-ban", func(w http.ResponseWriter, r *http.Request) {
 		handlers.ToggleBanStatus(w, r, db)
 	})
+	mux.HandleFunc("/forum/profile/change-password", func(w http.ResponseWriter, r *http.Request) {
+		handlers.ChangePassword(db).ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/forum/profile/change-name", func(w http.ResponseWriter, r *http.Request) {
+		handlers.ChangeName(db).ServeHTTP(w, r)
+	})
 
 	return mux
 }

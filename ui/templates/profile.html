@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Profile</title>
+    <title>User Profile</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
@@ -53,11 +53,15 @@
                 <h3 class="section-title">Actions</h3>
                 <div class="button-group">
                     <button class="profile-button" onclick="openModal('change-password-modal')">Change Password</button>
+                    {{if not .IsAdmin}}
+                    <button class="profile-button" onclick="openModal('change-name-modal')">Change Name</button>
+                    {{end}}
                 </div>
             </div>
         </div>
         <div class="separator-line"></div>
 
+        {{if .IsAdmin}}
         <div class="user-table-container">
             <h3 class="section-title">Manage Users</h3>
             <table class="user-table">
@@ -92,13 +96,13 @@
                         <button class="ban-button" data-user-id="{{.ID}}">
                             {{if .IsBanned}}Unban{{else}}Ban{{end}}
                         </button>
-
                     </td>
                 </tr>
                 {{end}}
                 </tbody>
             </table>
         </div>
+        {{end}}
 
         <div id="view-profile-modal" class="modal">
             <div class="modal-content">
@@ -141,9 +145,8 @@
                 </div>
             </div>
         </div>
-
-
     </div>
+
 
     {{template "right_sidebar.html" .}}
 </main>
@@ -152,7 +155,7 @@
     <div class="modal-content">
         <span class="close" onclick="closeModal('change-password-modal')">&times;</span>
         <h2>Change Password</h2>
-        <form method="POST" action="/forum/profile">
+        <form method="POST" action="/forum/profile/change-password">
             <label for="current-password">Current Password:</label>
             <input type="password" id="current-password" name="current-password" required>
             <label for="new-password">New Password:</label>
@@ -160,6 +163,18 @@
             <label for="confirm-password">Confirm New Password:</label>
             <input type="password" id="confirm-password" name="confirm-password" required>
             <button type="submit" class="modal-button">Update Password</button>
+        </form>
+    </div>
+</div>
+
+<div id="change-name-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('change-name-modal')">&times;</span>
+        <h2>Change Name</h2>
+        <form method="POST" action="/forum/profile/change-name">
+            <label for="new-name">New Name:</label>
+            <input type="text" id="new-name" name="new-name" required>
+            <button type="submit" class="modal-button">Update Name</button>
         </form>
     </div>
 </div>

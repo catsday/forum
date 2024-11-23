@@ -408,3 +408,96 @@ func ToggleBanStatus(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.WriteHeader(http.StatusOK)
 	log.Printf("ToggleBanStatus: Updated ban status for user ID %s to %t", userID, newStatus)
 }
+
+func ChangePassword(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, err := GetSessionUserID(r, db)
+		if err != nil {
+			log.Printf("ChangePassword: Failed to get user ID from session. Error: %v", err)
+			http.Redirect(w, r, "/forum/login", http.StatusSeeOther)
+			return
+		}
+
+		currentPassword := r.FormValue("current-password")
+		newPassword := r.FormValue("new-password")
+		confirmPassword := r.FormValue("confirm-password")
+
+		if newPassword != confirmPassword {
+			http.Error(w, "New passwords do not match", http.StatusBadRequest)
+			return
+		}
+
+		if len(newPassword) < 8 {
+			http.Error(w, "Password must be at least 8 characters long", http.StatusBadRequest)
+			return
+		}
+
+		var hashedPassword string
+		err = db.QueryRow("SELECT password FROM users WHERE id = ?", userID).Scan(&hashedPassword)
+		if err != nil {
+			log.Printf("ChangePassword: Failed to fetch user password. Error: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(currentPassword))
+		if err != nil {
+			http.Error(w, "Incorrect current password", http.StatusUnauthorized)
+			return
+		}
+
+		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("ChangePassword: Failed to hash new password. Error: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = db.Exec("UPDATE users SET password = ? WHERE id = ?", newHashedPassword, userID)
+		if err != nil {
+			log.Printf("ChangePassword: Failed to update password. Error: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("ChangePassword: Successfully updated password for user ID %d", userID)
+		http.Redirect(w, r, "/forum/profile", http.StatusSeeOther)
+	}
+}
+
+func ChangeName(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, err := GetSessionUserID(r, db)
+		if err != nil {
+			log.Printf("ChangeName: Failed to get user ID from session. Error: %v", err)
+			http.Redirect(w, r, "/forum/login", http.StatusSeeOther)
+			return
+		}
+
+		newName := r.FormValue("new-name")
+		if len(newName) == 0 {
+			http.Error(w, "Name cannot be empty", http.StatusBadRequest)
+			return
+		}
+
+		_, err = db.Exec("UPDATE users SET username = ? WHERE id = ?", newName, userID)
+		if err != nil {
+			log.Printf("ChangeName: Failed to update username. Error: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("ChangeName: Successfully updated username for user ID %d", userID)
+		http.Redirect(w, r, "/forum/profile", http.StatusSeeOther)
+	}
+}
