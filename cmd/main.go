@@ -37,7 +37,7 @@ func main() {
 		port = "8080"
 	}
 	log.Printf("Starting server on : http://%s:%s", "localhost", port)
-	err = http.ListenAndServe("localhost:"+port, mux)
+	err = http.ListenAndServe("0.0.0.0:"+port, mux)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

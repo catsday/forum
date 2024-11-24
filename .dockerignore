@@ -1,0 +1,7 @@
+# Directories
+/.git
+/node_modules
+
+# Files
+*.log
+*.tmp
