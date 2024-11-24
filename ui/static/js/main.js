@@ -121,10 +121,10 @@ function openUserProfile(button) {
     document.getElementById('profile-likedposts').textContent = button.getAttribute('data-user-likedposts');
     document.getElementById('profile-dislikedposts').textContent = button.getAttribute('data-user-dislikedposts');
     document.getElementById('profile-ratioposts').textContent = button.getAttribute('data-user-ratioposts');
-    document.getElementById('profile-ratiocomments').textContent = button.getAttribute('data-user-ratiocomments');
 
     openModal('view-profile-modal');
 }
+
 
 function toggleBan(userID, button) {
     const isBanned = button.dataset.isBanned === "true";

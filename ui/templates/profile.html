@@ -43,10 +43,6 @@
                         <span class="stat-value">{{printf "%.2f" .LikeDislikeRatioPosts}}</span>
                         <span class="stat-label">Like/Dislike Ratio (Posts)</span>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-value">{{printf "%.2f" .LikeDislikeRatioComments}}</span>
-                        <span class="stat-label">Like/Dislike Ratio (Comments)</span>
-                    </div>
                 </div>
             </div>
             <div class="profile-actions">
@@ -80,6 +76,7 @@
                     <td>{{.Username}}</td>
                     <td>{{.Email}}</td>
                     <td class="action-buttons">
+                        {{if and (ne .Email "admin@gmail.com") (ne .Username "Admin")}}
                         <button class="view-button"
                                 data-user-id="{{.ID}}"
                                 data-user-username="{{.Username}}"
@@ -89,15 +86,18 @@
                                 data-user-likedposts="{{.LikedPosts}}"
                                 data-user-dislikedposts="{{.DislikedPosts}}"
                                 data-user-ratioposts="{{printf "%.2f" .LikeDislikeRatioPosts}}"
-                        data-user-ratiocomments="{{printf "%.2f" .LikeDislikeRatioComments}}"
                         onclick="openUserProfile(this)">
                         View Profile
                         </button>
                         <button class="ban-button" data-user-id="{{.ID}}">
                             {{if .IsBanned}}Unban{{else}}Ban{{end}}
                         </button>
+                        {{else}}
+                        <div class="placeholder">It is your profile</div>
+                        {{end}}
                     </td>
                 </tr>
+
                 {{end}}
                 </tbody>
             </table>
@@ -137,16 +137,11 @@
                             <span class="stat-label">Like/Dislike Ratio (Posts):</span>
                             <span id="profile-ratioposts" class="stat-value"></span>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Like/Dislike Ratio (Comments):</span>
-                            <span id="profile-ratiocomments" class="stat-value"></span>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
 
     {{template "right_sidebar.html" .}}
 </main>

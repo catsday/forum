@@ -1,53 +1,62 @@
 package handlers
 
 import (
+	"database/sql"
+	"forum/internal/models"
 	"html/template"
 	"log"
 	"net/http"
 )
 
 type ErrorData struct {
-	Code    int
-	Message string
+	Code        int
+	Status      string
+	Description string
 }
 
-func RenderError(w http.ResponseWriter, code int, message string) {
-	tmpl, err := template.ParseFiles("templates/error.html")
+func RenderError(w http.ResponseWriter, code int, description string) {
+	w.WriteHeader(code)
+	data := ErrorData{
+		Code:        code,
+		Status:      http.StatusText(code),
+		Description: description,
+	}
+
+	files := []string{
+		"./ui/templates/error.html",
+		"./ui/templates/header.html",
+		"./ui/templates/footer.html",
+	}
+
+	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		log.Printf("Ошибка парсинга шаблона: %v", err)
+		log.Printf("Error rendering error page: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(code)
-
-	data := ErrorData{
-		Code:    code,
-		Message: message,
-	}
-
-	if err := tmpl.Execute(w, data); err != nil {
-		log.Printf("Ошибка рендеринга шаблона: %v", err)
+	err = ts.Execute(w, data)
+	if err != nil {
+		log.Printf("Error executing error template: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
 
-func ErrorBadRequest(w http.ResponseWriter, message string) {
-	RenderError(w, http.StatusBadRequest, message)
-}
+func AuthorizeAndHandle(db *sql.DB, handlerFunc func(w http.ResponseWriter, r *http.Request, userID int)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userModel := &models.UserModel{DB: db}
+		userID, err := userModel.GetSessionUserIDFromRequest(r)
+		if err != nil {
+			RenderError(w, http.StatusUnauthorized, "Access denied. Please log in to view this page.")
+			return
+		}
 
-func ErrorNotFound(w http.ResponseWriter, message string) {
-	RenderError(w, http.StatusNotFound, message)
-}
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			RenderError(w, http.StatusMethodNotAllowed, "This resource does not support the HTTP method used.")
+			return
+		}
 
-func ErrorInternalServer(w http.ResponseWriter) {
-	RenderError(w, http.StatusInternalServerError, "Произошла внутренняя ошибка сервера")
-}
-
-func ErrorForbidden(w http.ResponseWriter, message string) {
-	RenderError(w, http.StatusForbidden, message)
-}
-
-func ErrorUnauthorized(w http.ResponseWriter) {
-	RenderError(w, http.StatusUnauthorized, "Unauthorized access. Please log in.")
+		handlerFunc(w, r, userID)
+	}
 }

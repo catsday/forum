@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"fmt"
 	"forum/internal/models"
 	"golang.org/x/crypto/bcrypt"
 	"html/template"
@@ -13,35 +12,33 @@ import (
 )
 
 type AdminUser struct {
-	ID                       int
-	Username                 string
-	Email                    string
-	PostCount                int
-	CommentCount             int
-	LikedPosts               int
-	DislikedPosts            int
-	LikeDislikeRatioPosts    float64
-	LikeDislikeRatioComments float64
-	IsBanned                 bool
+	ID                    int
+	Username              string
+	Email                 string
+	PostCount             int
+	CommentCount          int
+	LikedPosts            int
+	DislikedPosts         int
+	LikeDislikeRatioPosts float64
+	IsBanned              bool
 }
 
 type ProfileData struct {
-	ID                       int
-	Username                 string
-	Email                    string
-	PostCount                int
-	CommentCount             int
-	LikedPosts               int
-	DislikedPosts            int
-	LikeDislikeRatioPosts    float64
-	LikeDislikeRatioComments float64
-	IsAdmin                  bool
-	LoggedIn                 bool
-	FilterMyPosts            bool
-	FilterLikedPosts         bool
-	FilterComments           bool
-	ActiveCategoryID         int
-	Users                    []AdminUser
+	ID                    int
+	Username              string
+	Email                 string
+	PostCount             int
+	CommentCount          int
+	LikedPosts            int
+	DislikedPosts         int
+	LikeDislikeRatioPosts float64
+	IsAdmin               bool
+	LoggedIn              bool
+	FilterMyPosts         bool
+	FilterLikedPosts      bool
+	FilterComments        bool
+	ActiveCategoryID      int
+	Users                 []AdminUser
 }
 
 func Login(db *sql.DB) http.HandlerFunc {
@@ -56,8 +53,7 @@ func Login(db *sql.DB) http.HandlerFunc {
 
 		ts, err := template.ParseFiles(files...)
 		if err != nil {
-			log.Printf("Error parsing login page templates: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to load login page templates.")
 			return
 		}
 
@@ -65,43 +61,40 @@ func Login(db *sql.DB) http.HandlerFunc {
 			email := r.FormValue("email")
 			password := r.FormValue("password")
 
+			var hashedPassword string
 			var isBanned bool
-			err = db.QueryRow("SELECT is_banned FROM users WHERE email = ?", email).Scan(&isBanned)
+
+			err := db.QueryRow("SELECT password, is_banned FROM users WHERE email = ?", email).Scan(&hashedPassword, &isBanned)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					log.Printf("Login attempt with non-existent email: %s", email)
-					http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+					RenderError(w, http.StatusUnauthorized, "The email does not exist in the database.")
 					return
 				}
-				log.Printf("Database error during is_banned check for email %s: %v", email, err)
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				RenderError(w, http.StatusInternalServerError, "Failed to query user information.")
 				return
 			}
 
 			if isBanned {
-				log.Printf("Banned user attempted login: %s", email)
-				w.Header().Set("Content-Type", "text/html")
-				fmt.Fprintln(w, `<script>showAlert('Your account is banned. Please contact support.');</script>`)
-				err = ts.Execute(w, nil)
-				if err != nil {
-					log.Printf("Error rendering login page for banned user: %v", err)
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				}
+				RenderError(w, http.StatusForbidden, "The account is banned. Please contact support.")
+				return
+			}
+
+			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+			if err != nil {
+				RenderError(w, http.StatusUnauthorized, "The entered password is incorrect.")
 				return
 			}
 
 			userModel := &models.UserModel{DB: db}
 			userID, err := userModel.Authenticate(email, password)
 			if err != nil {
-				log.Printf("Failed login attempt for email %s: %v", email, err)
-				http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+				RenderError(w, http.StatusInternalServerError, "Failed to authenticate user.")
 				return
 			}
 
 			sessionID, err := userModel.CreateSession(userID)
 			if err != nil {
-				log.Printf("Error creating session for user ID %d: %v", userID, err)
-				http.Error(w, "Failed to create session", http.StatusInternalServerError)
+				RenderError(w, http.StatusInternalServerError, "Failed to create user session.")
 				return
 			}
 
@@ -112,15 +105,21 @@ func Login(db *sql.DB) http.HandlerFunc {
 				HttpOnly: true,
 				Path:     "/",
 			})
-			log.Printf("User logged in successfully: email=%s, userID=%d", email, userID)
+
 			http.Redirect(w, r, "/", http.StatusSeeOther)
-		} else {
-			err = ts.Execute(w, nil)
-			if err != nil {
-				log.Printf("Error rendering login page: %v", err)
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
+			return
 		}
+
+		if r.Method == http.MethodGet {
+			err := ts.Execute(w, nil)
+			if err != nil {
+				RenderError(w, http.StatusInternalServerError, "Failed to render the login page.")
+			}
+			return
+		}
+
+		w.Header().Set("Allow", "GET, POST")
+		RenderError(w, http.StatusMethodNotAllowed, "Method not allowed. Use GET or POST.")
 	}
 }
 
@@ -133,7 +132,6 @@ func emailExists(db *sql.DB, email string) bool {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)", email).Scan(&exists)
 	if err != nil {
-		log.Printf("Error checking if email exists: %v", err)
 		return false
 	}
 	return exists
@@ -150,16 +148,19 @@ func SignUp(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Failed to load templates for registration page.")
 		return
 	}
 
 	if r.Method == http.MethodGet {
 		err = ts.Execute(w, nil)
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "The registration page could not be displayed.")
 		}
-	} else if r.Method == http.MethodPost {
+		return
+	}
+
+	if r.Method == http.MethodPost {
 		r.ParseForm()
 		username := r.FormValue("username")
 		email := r.FormValue("email")
@@ -167,42 +168,43 @@ func SignUp(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		confirmPassword := r.FormValue("confirm-password")
 
 		if !isValidEmail(email) {
-			http.Error(w, "Invalid email address", http.StatusBadRequest)
+			RenderError(w, http.StatusBadRequest, "Incorrect email. Check the entered data.")
 			return
 		}
 
 		if emailExists(db, email) {
-			http.Error(w, "Email already in use", http.StatusBadRequest)
-			return
-		}
-
-		if len(password) < 8 {
-			http.Error(w, "Password must be at least 8 characters long", http.StatusBadRequest)
+			RenderError(w, http.StatusConflict, "The email you entered is already registered. Please use another email.")
 			return
 		}
 
 		if password != confirmPassword {
-			http.Error(w, "Passwords do not match", http.StatusBadRequest)
+			RenderError(w, http.StatusBadRequest, "The 'Password' and 'Confirm password' fields must match.")
+			return
+		}
+
+		if len(password) < 8 {
+			RenderError(w, http.StatusBadRequest, "Password must be at least 8 characters.")
 			return
 		}
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
-			http.Error(w, "Error hashing password", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to process password. Try again.")
 			return
 		}
 
 		_, err = db.Exec("INSERT INTO users (username, email, password) VALUES (?, ?, ?)", username, email, string(hashedPassword))
 		if err != nil {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to create user due to internal server error.")
 			return
 		}
 
 		http.Redirect(w, r, "/forum/login", http.StatusSeeOther)
-	} else {
-		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
 	}
+
+	w.Header().Set("Allow", "GET, POST")
+	RenderError(w, http.StatusMethodNotAllowed, "Method not supported. Use GET or POST.")
 }
 
 func Logout(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -250,7 +252,7 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	isAdmin := email == "admin@gmail.com" && username == "Admin"
 
 	var postCount, commentCount, likedPosts, dislikedPosts int
-	var likeDislikeRatioPosts, likeDislikeRatioComments float64
+	var likeDislikeRatioPosts float64
 
 	err = db.QueryRow("SELECT COUNT(*) FROM posts WHERE user_id = ?", userID).Scan(&postCount)
 	if err != nil {
@@ -282,12 +284,6 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		likeDislikeRatioPosts = 0
 	}
 
-	err = db.QueryRow("SELECT COALESCE(AVG(vote_type), 0) FROM comments c JOIN post_votes pv ON c.post_id = pv.post_id WHERE c.user_id = ?", userID).Scan(&likeDislikeRatioComments)
-	if err != nil {
-		log.Printf("UserProfile: Failed to calculate like/dislike ratio for comments for user ID %d. Error: %v", userID, err)
-		likeDislikeRatioComments = 0
-	}
-
 	var users []AdminUser
 	if isAdmin {
 		rows, err := db.Query(`
@@ -297,8 +293,7 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				(SELECT COUNT(*) FROM comments WHERE user_id = u.id) AS comment_count,
 				(SELECT COUNT(*) FROM post_votes WHERE user_id = u.id AND vote_type = 1) AS liked_posts,
 				(SELECT COUNT(*) FROM post_votes WHERE user_id = u.id AND vote_type = -1) AS disliked_posts,
-				COALESCE((SELECT AVG(vote_type) FROM post_votes WHERE user_id = u.id), 0) AS like_dislike_ratio_posts,
-				COALESCE((SELECT AVG(vote_type) FROM comments c JOIN post_votes pv ON c.post_id = pv.post_id WHERE c.user_id = u.id), 0) AS like_dislike_ratio_comments
+				COALESCE((SELECT AVG(vote_type) FROM post_votes WHERE user_id = u.id), 0) AS like_dislike_ratio_posts
 			FROM users u
 		`)
 		if err != nil {
@@ -311,7 +306,7 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					&user.ID, &user.Username, &user.Email, &user.IsBanned,
 					&user.PostCount, &user.CommentCount,
 					&user.LikedPosts, &user.DislikedPosts,
-					&user.LikeDislikeRatioPosts, &user.LikeDislikeRatioComments,
+					&user.LikeDislikeRatioPosts,
 				); err != nil {
 					log.Printf("UserProfile: Error scanning user data: %v", err)
 					continue
@@ -322,22 +317,21 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	data := ProfileData{
-		ID:                       userID,
-		Username:                 username,
-		Email:                    email,
-		PostCount:                postCount,
-		CommentCount:             commentCount,
-		LikedPosts:               likedPosts,
-		DislikedPosts:            dislikedPosts,
-		LikeDislikeRatioPosts:    likeDislikeRatioPosts,
-		LikeDislikeRatioComments: likeDislikeRatioComments,
-		IsAdmin:                  isAdmin,
-		LoggedIn:                 true,
-		FilterMyPosts:            false,
-		FilterLikedPosts:         false,
-		FilterComments:           false,
-		ActiveCategoryID:         0,
-		Users:                    users,
+		ID:                    userID,
+		Username:              username,
+		Email:                 email,
+		PostCount:             postCount,
+		CommentCount:          commentCount,
+		LikedPosts:            likedPosts,
+		DislikedPosts:         dislikedPosts,
+		LikeDislikeRatioPosts: likeDislikeRatioPosts,
+		IsAdmin:               isAdmin,
+		LoggedIn:              true,
+		FilterMyPosts:         false,
+		FilterLikedPosts:      false,
+		FilterComments:        false,
+		ActiveCategoryID:      0,
+		Users:                 users,
 	}
 
 	files := []string{
@@ -412,14 +406,14 @@ func ToggleBanStatus(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 func ChangePassword(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			w.Header().Set("Allow", "POST")
+			RenderError(w, http.StatusMethodNotAllowed, "Method Not Allowed. Use POST.")
 			return
 		}
 
 		userID, err := GetSessionUserID(r, db)
 		if err != nil {
-			log.Printf("ChangePassword: Failed to get user ID from session. Error: %v", err)
-			http.Redirect(w, r, "/forum/login", http.StatusSeeOther)
+			RenderError(w, http.StatusUnauthorized, "Unauthorized. Please log in to change your password.")
 			return
 		}
 
@@ -427,45 +421,41 @@ func ChangePassword(db *sql.DB) http.HandlerFunc {
 		newPassword := r.FormValue("new-password")
 		confirmPassword := r.FormValue("confirm-password")
 
-		if newPassword != confirmPassword {
-			http.Error(w, "New passwords do not match", http.StatusBadRequest)
-			return
-		}
-
-		if len(newPassword) < 8 {
-			http.Error(w, "Password must be at least 8 characters long", http.StatusBadRequest)
-			return
-		}
-
 		var hashedPassword string
 		err = db.QueryRow("SELECT password FROM users WHERE id = ?", userID).Scan(&hashedPassword)
 		if err != nil {
-			log.Printf("ChangePassword: Failed to fetch user password. Error: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to retrieve your current password.")
 			return
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(currentPassword))
 		if err != nil {
-			http.Error(w, "Incorrect current password", http.StatusUnauthorized)
+			RenderError(w, http.StatusUnauthorized, "The current password you entered is incorrect.")
+			return
+		}
+
+		if len(newPassword) < 8 {
+			RenderError(w, http.StatusBadRequest, "The new password must be at least 8 characters long.")
+			return
+		}
+
+		if newPassword != confirmPassword {
+			RenderError(w, http.StatusBadRequest, "The 'New Password' and 'Confirm Password' fields must match.")
 			return
 		}
 
 		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 		if err != nil {
-			log.Printf("ChangePassword: Failed to hash new password. Error: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to process the new password.")
 			return
 		}
 
 		_, err = db.Exec("UPDATE users SET password = ? WHERE id = ?", newHashedPassword, userID)
 		if err != nil {
-			log.Printf("ChangePassword: Failed to update password. Error: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to update the password. Please try again.")
 			return
 		}
 
-		log.Printf("ChangePassword: Successfully updated password for user ID %d", userID)
 		http.Redirect(w, r, "/forum/profile", http.StatusSeeOther)
 	}
 }
@@ -473,31 +463,29 @@ func ChangePassword(db *sql.DB) http.HandlerFunc {
 func ChangeName(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			w.Header().Set("Allow", "POST")
+			RenderError(w, http.StatusMethodNotAllowed, "Method Not Allowed. Use POST.")
 			return
 		}
 
 		userID, err := GetSessionUserID(r, db)
 		if err != nil {
-			log.Printf("ChangeName: Failed to get user ID from session. Error: %v", err)
-			http.Redirect(w, r, "/forum/login", http.StatusSeeOther)
+			RenderError(w, http.StatusUnauthorized, "Unauthorized. Please log in to change your name.")
 			return
 		}
 
 		newName := r.FormValue("new-name")
 		if len(newName) == 0 {
-			http.Error(w, "Name cannot be empty", http.StatusBadRequest)
+			RenderError(w, http.StatusBadRequest, "The name cannot be empty.")
 			return
 		}
 
 		_, err = db.Exec("UPDATE users SET username = ? WHERE id = ?", newName, userID)
 		if err != nil {
-			log.Printf("ChangeName: Failed to update username. Error: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to update the name. Please try again.")
 			return
 		}
 
-		log.Printf("ChangeName: Successfully updated username for user ID %d", userID)
 		http.Redirect(w, r, "/forum/profile", http.StatusSeeOther)
 	}
 }

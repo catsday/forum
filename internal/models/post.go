@@ -67,18 +67,19 @@ func (m *PostModel) InsertWithUserIDAndCategories(title string, content string, 
 }
 
 func (m *PostModel) Get(id int) (*Post, error) {
-	stmt := `SELECT id, title, content, created, user_id FROM posts WHERE id = ?`
-	row := m.DB.QueryRow(stmt, id)
+	query := `SELECT id, title, content, user_id FROM posts WHERE id = ?`
+	row := m.DB.QueryRow(query, id)
 
-	s := &Post{}
-	err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.UserID)
-	if err == sql.ErrNoRows {
-		return nil, errors.New("no matching record found")
-	} else if err != nil {
+	post := &Post{}
+	err := row.Scan(&post.ID, &post.Title, &post.Content, &post.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		}
 		return nil, err
 	}
 
-	return s, nil
+	return post, nil
 }
 
 func (m *PostModel) GetCategories(postID int) ([]string, error) {

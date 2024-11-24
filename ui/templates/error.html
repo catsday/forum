@@ -2,9 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error {{.Code}} - Forum</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/error.css">
 </head>
 <body>
-
+{{template "header" .}}
+<main class="error-container">
+    <div class="error-image-container">
+        <img src="/static/img/error.jpg" alt="Error Image" class="error-image">
+    </div>
+    <div class="error-details">
+        <h1>Error {{.Code}}: {{.Status}}</h1>
+        <p>{{.Description}}</p>
+        <a href="/" class="error-home-button">Return to home page</a>
+    </div>
+</main>
+{{template "footer" .}}
 </body>
 </html>

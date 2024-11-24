@@ -39,18 +39,20 @@ func Router(db *sql.DB) *http.ServeMux {
 		handlers.Home(w, r, postModel, commentModel, db)
 	})
 
-	mux.HandleFunc("/forum/posted", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/forum/posted", handlers.AuthorizeAndHandle(db, func(w http.ResponseWriter, r *http.Request, userID int) {
 		r.URL.RawQuery = "myPosts=1"
 		handlers.Home(w, r, postModel, commentModel, db)
-	})
-	mux.HandleFunc("/forum/liked", func(w http.ResponseWriter, r *http.Request) {
+	}))
+
+	mux.HandleFunc("/forum/liked", handlers.AuthorizeAndHandle(db, func(w http.ResponseWriter, r *http.Request, userID int) {
 		r.URL.RawQuery = "likedPosts=1"
 		handlers.Home(w, r, postModel, commentModel, db)
-	})
-	mux.HandleFunc("/forum/commented", func(w http.ResponseWriter, r *http.Request) {
+	}))
+
+	mux.HandleFunc("/forum/commented", handlers.AuthorizeAndHandle(db, func(w http.ResponseWriter, r *http.Request, userID int) {
 		r.URL.RawQuery = "commentedPosts=1"
 		handlers.Home(w, r, postModel, commentModel, db)
-	})
+	}))
 
 	mux.HandleFunc("/post/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/comment") {

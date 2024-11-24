@@ -9,33 +9,44 @@ import (
 
 func ToggleVote(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		w.Header().Set("Allow", "POST")
+		RenderError(w, http.StatusMethodNotAllowed, "Method Not Allowed. Use POST.")
 		return
 	}
 
 	userModel := &models.UserModel{DB: db}
 	userID, err := userModel.GetSessionUserIDFromRequest(r)
 	if err != nil || userID == 0 {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		RenderError(w, http.StatusUnauthorized, "Unauthorized. Please log in to vote.")
 		return
 	}
 
 	postID, err := strconv.Atoi(r.FormValue("postID"))
-	if err != nil {
-		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+	if err != nil || postID < 1 {
+		RenderError(w, http.StatusBadRequest, "Invalid post ID.")
 		return
 	}
 
 	voteType, err := strconv.Atoi(r.FormValue("voteType"))
 	if err != nil || (voteType != 1 && voteType != -1) {
-		http.Error(w, "Invalid vote type", http.StatusBadRequest)
+		RenderError(w, http.StatusBadRequest, "Vote type must be 1 (like) or -1 (dislike). Invalid value provided.")
 		return
 	}
 
 	postModel := &models.PostModel{DB: db}
+
+	_, err = postModel.Get(postID)
+	if err == sql.ErrNoRows {
+		RenderError(w, http.StatusNotFound, "The post with the specified ID does not exist. Please check the ID.")
+		return
+	} else if err != nil {
+		RenderError(w, http.StatusInternalServerError, "Failed to retrieve post for voting.")
+		return
+	}
+
 	err = postModel.ToggleVote(postID, userID, voteType)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Failed to process your vote.")
 		return
 	}
 
