@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -177,13 +178,23 @@ func SignUp(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			return
 		}
 
-		if password != confirmPassword {
-			RenderError(w, http.StatusBadRequest, "The 'Password' and 'Confirm password' fields must match.")
+		if IsBlankOrInvisible(password) {
+			RenderError(w, http.StatusBadRequest, "Password cannot consist only of invisible characters.")
+			return
+		}
+
+		if strings.Contains(password, " ") {
+			RenderError(w, http.StatusBadRequest, "Password cannot contain spaces.")
 			return
 		}
 
 		if len(password) < 8 {
 			RenderError(w, http.StatusBadRequest, "Password must be at least 8 characters.")
+			return
+		}
+
+		if password != confirmPassword {
+			RenderError(w, http.StatusBadRequest, "The 'Password' and 'Confirm password' fields must match.")
 			return
 		}
 
@@ -431,6 +442,16 @@ func ChangePassword(db *sql.DB) http.HandlerFunc {
 		err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(currentPassword))
 		if err != nil {
 			RenderError(w, http.StatusUnauthorized, "The current password you entered is incorrect.")
+			return
+		}
+
+		if IsBlankOrInvisible(newPassword) {
+			RenderError(w, http.StatusBadRequest, "The new password cannot consist only of invisible characters.")
+			return
+		}
+
+		if strings.Contains(newPassword, " ") {
+			RenderError(w, http.StatusBadRequest, "The new password cannot contain spaces.")
 			return
 		}
 
