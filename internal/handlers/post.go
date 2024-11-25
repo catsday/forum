@@ -226,8 +226,8 @@ func PostCreate(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	title := r.FormValue("title")
 	content := r.FormValue("content")
-	if title == "" || content == "" {
-		RenderError(w, http.StatusBadRequest, "Title and content cannot be empty.")
+	if IsBlankOrInvisible(title) || IsBlankOrInvisible(content) {
+		RenderError(w, http.StatusBadRequest, "Title and content cannot consist only of invisible characters.")
 		return
 	}
 

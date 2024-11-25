@@ -49,7 +49,7 @@
                         <span>Posted by {{.Username}}</span>
                         <span style="float: right;">on {{.Created.Format "02 Jan 2006 at 15:04"}}</span>
                     </div>
-                    <p>{{.Content}}</p>
+                    <pre class="content-preserve">{{.Content}}</pre>
                 </div>
                 {{end}}
                 {{else}}

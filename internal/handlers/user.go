@@ -475,8 +475,8 @@ func ChangeName(db *sql.DB) http.HandlerFunc {
 		}
 
 		newName := r.FormValue("new-name")
-		if len(newName) == 0 {
-			RenderError(w, http.StatusBadRequest, "The name cannot be empty.")
+		if IsBlankOrInvisible(newName) {
+			RenderError(w, http.StatusBadRequest, "The name cannot consist only of invisible characters.")
 			return
 		}
 

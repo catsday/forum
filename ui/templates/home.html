@@ -38,7 +38,7 @@
                         {{range .UserComments}}
                         <div class="comment">
                             <span>{{.Created.Format "02 Jan 2006 at 15:04"}}:</span>
-                            <p>{{.Content}}</p>
+                            <pre class="content-preserve">{{.Content}}</pre>
                         </div>
                         {{end}}
                     </div>
