@@ -67,11 +67,11 @@ func (m *PostModel) InsertWithUserIDAndCategories(title string, content string, 
 }
 
 func (m *PostModel) Get(id int) (*Post, error) {
-	query := `SELECT id, title, content, user_id FROM posts WHERE id = ?`
+	query := `SELECT id, title, content, user_id, created FROM posts WHERE id = ?`
 	row := m.DB.QueryRow(query, id)
 
 	post := &Post{}
-	err := row.Scan(&post.ID, &post.Title, &post.Content, &post.UserID)
+	err := row.Scan(&post.ID, &post.Title, &post.Content, &post.UserID, &post.Created)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sql.ErrNoRows

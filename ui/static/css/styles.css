@@ -1170,3 +1170,17 @@ footer p {
   background-color: #5865f2;
   transform: translateY(-4px);
 }
+
+.content-preserve {
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre-wrap;
+}
+
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
