@@ -52,7 +52,8 @@ func (m *UserModel) CreateSession(userID int) (string, error) {
 		return "", err
 	}
 	expiry := time.Now().Add(24 * time.Hour)
-	stmt := `INSERT INTO sessions (session_id, user_id, expiry) VALUES (?, ?, ?)`
+
+	stmt := `REPLACE INTO sessions (session_id, user_id, expiry) VALUES (?, ?, ?)`
 	_, err = m.DB.Exec(stmt, sessionID, userID, expiry)
 	if err != nil {
 		return "", err
