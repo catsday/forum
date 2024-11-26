@@ -50,12 +50,23 @@
                         <span style="float: right;">on {{.Created.Format "02 Jan 2006 at 15:04"}}</span>
                     </div>
                     <pre class="content-preserve">{{.Content}}</pre>
+
+                    <div class="comment-votes">
+                        <button onclick="toggleCommentVote('{{.ID}}', 1)" class="vote-button-comment like-button {{if eq .UserVote 1}}active{{end}}">
+                            <img src="/static/img/like.png" alt="Like"> {{.Likes}}
+                        </button>
+                        <button onclick="toggleCommentVote('{{.ID}}', -1)" class="vote-button-comment dislike-button {{if eq .UserVote -1}}active{{end}}">
+                            <img src="/static/img/dislike.png" alt="Dislike"> {{.Dislikes}}
+                        </button>
+                    </div>
                 </div>
+
                 {{end}}
                 {{else}}
                 <p>No comments yet.</p>
                 {{end}}
             </div>
+
 
             {{if .LoggedIn}}
             <form action="/post/{{.Post.ID}}/comment" method="POST" class="comment-form">

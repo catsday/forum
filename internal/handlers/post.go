@@ -78,22 +78,23 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	comments, err := commentModel.GetByPostID(id)
+	userModel := &models.UserModel{DB: db}
+	userID, _ := userModel.GetSessionUserIDFromRequest(r)
+
+	comments, err := commentModel.GetByPostID(id, userID)
 	if err != nil {
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve comments for the post.")
 		return
-	}
-
-	userModel := &models.UserModel{DB: db}
-	userID, _ := userModel.GetSessionUserIDFromRequest(r)
-	if userID > 0 {
-		post.UserVote, _ = postModel.GetUserVote(post.ID, userID)
 	}
 
 	post.Likes, post.Dislikes, err = postModel.GetLikesAndDislikes(post.ID)
 	if err != nil {
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve likes and dislikes for the post.")
 		return
+	}
+
+	if userID > 0 {
+		post.UserVote, _ = postModel.GetUserVote(post.ID, userID)
 	}
 
 	rows, err := db.Query(`

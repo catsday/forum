@@ -238,3 +238,25 @@ function showAlertWithConfirmationBan(message, onConfirm) {
     document.body.appendChild(overlay);
     document.body.appendChild(alertBox);
 }
+
+function toggleCommentVote(commentID, voteType) {
+    fetch("/toggle-comment-vote", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `commentID=${commentID}&voteType=${voteType}`
+    })
+        .then(response => {
+            if (response.status === 401) {
+                window.location.href = "/forum/login";
+            } else if (response.ok) {
+                window.location.reload();
+            } else {
+                alert("An error occurred while attempting to vote.");
+            }
+        })
+        .catch(() => {
+            alert("An error occurred while attempting to vote.");
+        });
+}

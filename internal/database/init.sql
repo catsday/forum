@@ -63,3 +63,12 @@ CREATE TABLE IF NOT EXISTS sessions (
                                         expiry DATETIME NOT NULL,
                                         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS comment_votes (
+                                             comment_id INTEGER,
+                                             user_id INTEGER,
+                                             vote_type INTEGER,
+                                             PRIMARY KEY (comment_id, user_id),
+                                             FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+                                             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
