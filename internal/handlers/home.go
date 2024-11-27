@@ -27,13 +27,13 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 	if loggedIn {
 		err = db.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&username)
 		if err != nil {
-			http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 			return
 		}
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "This resource does not support the HTTP method used.", http.StatusMethodNotAllowed)
+		RenderError(w, http.StatusMethodNotAllowed, "The requested resource does not support the HTTP method used. Please verify your request.")
 		return
 	}
 
@@ -46,26 +46,26 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 
 	defer func() {
 		if r := recover(); r != nil {
-			http.Error(w, "The server encountered an unexpected error. Please try again later.", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "The server encountered an unexpected error. Please try again later.")
 		}
 	}()
 
 	if filterComments {
 		posts, err = postModel.GetPostsWithUserComments(userID)
 		if err != nil {
-			http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 			return
 		}
 	} else if filterLikedPosts {
 		posts, err = postModel.GetLikedPostsByUserID(userID)
 		if err != nil {
-			http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 			return
 		}
 	} else if filterMyPosts {
 		posts, err = postModel.GetByUserID(userID)
 		if err != nil {
-			http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 			return
 		}
 	} else {
@@ -76,17 +76,17 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 				posts, err = postModel.GetByCategoryID(categoryID, userID)
 				activeCategoryID = categoryID
 				if err != nil {
-					http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+					RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 					return
 				}
 			} else {
-				http.Error(w, "Invalid category ID.", http.StatusBadRequest)
+				RenderError(w, http.StatusBadRequest, "The category ID provided is invalid. Please check your input.")
 				return
 			}
 		} else {
 			posts, err = postModel.Latest(userID)
 			if err != nil {
-				http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+				RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 				return
 			}
 		}
@@ -96,14 +96,14 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 		if loggedIn {
 			post.UserCommented, err = commentModel.HasUserCommented(post.ID, userID)
 			if err != nil {
-				http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+				RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 				return
 			}
 		}
 
 		post.CommentCount, err = commentModel.CountByPostID(post.ID)
 		if err != nil {
-			http.Error(w, "Failed to connect to the database. The server encountered a technical issue.", http.StatusInternalServerError)
+			RenderError(w, http.StatusInternalServerError, "Failed to connect to the database. Please try again later.")
 			return
 		}
 	}
@@ -118,7 +118,7 @@ func Home(w http.ResponseWriter, r *http.Request, postModel *models.PostModel, c
 
 	ts, err := template.New("home.html").ParseFiles(files...)
 	if err != nil {
-		http.Error(w, "Failed to load template files. The server encountered a technical issue.", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "The server failed to load the required template files. Please try again later.")
 		return
 	}
 

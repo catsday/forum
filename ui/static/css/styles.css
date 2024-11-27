@@ -1191,6 +1191,9 @@ footer p {
   padding: 15px;
   background-color: #2c2f33;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .comment-meta {
@@ -1207,11 +1210,10 @@ footer p {
 }
 
 .comment-votes {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
+  margin-top: auto;
 }
 
 .vote-button-comment {

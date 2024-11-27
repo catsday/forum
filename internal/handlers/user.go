@@ -228,7 +228,8 @@ func Logout(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	userModel := &models.UserModel{DB: db}
 	err = userModel.DeleteSession(cookie.Value)
 	if err != nil {
-		http.Error(w, "Failed to delete session", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Unable to log out due to a server issue. Please try again later.")
+
 		return
 	}
 
@@ -256,7 +257,7 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	err = db.QueryRow("SELECT username, email FROM users WHERE id = ?", userID).Scan(&username, &email)
 	if err != nil {
 		log.Printf("UserProfile: Failed to fetch user data for ID %d. Error: %v", userID, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 
@@ -356,14 +357,14 @@ func UserProfile(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
 		log.Printf("UserProfile: Failed to parse templates for user ID %d. Error: %v", userID, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 
 	err = ts.Execute(w, data)
 	if err != nil {
 		log.Printf("UserProfile: Failed to execute template for user ID %d. Error: %v", userID, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 
@@ -381,24 +382,24 @@ func GetSessionUserID(r *http.Request, db *sql.DB) (int, error) {
 
 func ToggleBanStatus(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		RenderError(w, http.StatusMethodNotAllowed, "This HTTP method is not allowed for the requested resource.")
 		return
 	}
 
 	userID := r.URL.Query().Get("userID")
 	if userID == "" {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
+		RenderError(w, http.StatusBadRequest, "User ID is required. Please provide a valid ID.")
 		return
 	}
 
 	var isBanned bool
 	err := db.QueryRow("SELECT is_banned FROM users WHERE id = ?", userID).Scan(&isBanned)
 	if err == sql.ErrNoRows {
-		http.Error(w, "User not found", http.StatusNotFound)
+		RenderError(w, http.StatusNotFound, "The requested user does not exist. Please verify the ID and try again.")
 		return
 	} else if err != nil {
 		log.Printf("ToggleBanStatus: Error fetching user status: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 
@@ -406,7 +407,7 @@ func ToggleBanStatus(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	_, err = db.Exec("UPDATE users SET is_banned = ? WHERE id = ?", newStatus, userID)
 	if err != nil {
 		log.Printf("ToggleBanStatus: Error updating ban status: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		RenderError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 

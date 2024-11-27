@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"forum/internal/models"
 	"html/template"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -14,85 +15,72 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	idStr := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/post/"))
 
 	if idStr == "" {
-		RenderError(w, http.StatusBadRequest, "Id cannot be empty. Input is required.")
+		RenderError(w, http.StatusBadRequest, "ID cannot be empty. Input is required.")
 		return
 	}
-
-	if strings.Contains(idStr, " ") || idStr != strings.TrimSpace(idStr) {
-		RenderError(w, http.StatusBadRequest, "Id cannot contain spaces. Input must be an integer.")
-		return
-	}
-
 	if !regexp.MustCompile(`^\d+$`).MatchString(idStr) {
-		RenderError(w, http.StatusBadRequest, "Id contains invalid characters. Only numerical values are allowed.")
+		RenderError(w, http.StatusBadRequest, "ID contains invalid characters. Only numerical values are allowed.")
 		return
 	}
-
 	if len(idStr) > 18 {
-		RenderError(w, http.StatusBadRequest, "Id is too long. Input must be shorter.")
+		RenderError(w, http.StatusBadRequest, "ID is too long. Input must be shorter.")
 		return
 	}
-
-	if len(idStr) > 1 && idStr[0] == '0' {
-		RenderError(w, http.StatusBadRequest, "Id has an invalid format. While numerically equivalent to 1, the formatting is incorrect.")
-		return
-	}
-
 	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		RenderError(w, http.StatusBadRequest, "Id must be a number.")
+	if err != nil || id < 1 {
+		RenderError(w, http.StatusBadRequest, "ID must be a positive number.")
 		return
 	}
-
-	if id < 1 {
-		if id == 0 {
-			RenderError(w, http.StatusBadRequest, "Id cannot be zero.")
-		} else {
-			RenderError(w, http.StatusBadRequest, "Negative Id values are not allowed. This is a client error.")
-		}
-		return
-	}
-
 	const MaxID = 1_000_000_000
 	if id > MaxID {
-		RenderError(w, http.StatusNotFound, "Id is out of the allowable range.")
+		RenderError(w, http.StatusNotFound, "ID is out of the allowable range.")
 		return
 	}
 
 	postModel := &models.PostModel{DB: db}
-
 	post, err := postModel.Get(id)
 	if err == sql.ErrNoRows {
 		RenderError(w, http.StatusNotFound, "The post with the specified ID does not exist. Please check the ID.")
 		return
 	} else if err != nil {
+		log.Printf("PostView: Failed to retrieve post: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve the post.")
 		return
 	}
 
-	commentModel := &models.CommentModel{DB: db}
-
 	err = db.QueryRow("SELECT username FROM users WHERE id = ?", post.UserID).Scan(&post.Username)
 	if err != nil {
+		log.Printf("PostView: Failed to retrieve the author's username: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve the post author's username.")
 		return
 	}
 
 	userModel := &models.UserModel{DB: db}
 	userID, _ := userModel.GetSessionUserIDFromRequest(r)
+	var loggedInUsername string
+	if userID > 0 {
+		err := db.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&loggedInUsername)
+		if err != nil {
+			log.Printf("PostView: Failed to retrieve logged-in user's username: %v", err)
+			RenderError(w, http.StatusInternalServerError, "Failed to retrieve user data. Please try again later.")
+			return
+		}
+	}
 
+	commentModel := &models.CommentModel{DB: db}
 	comments, err := commentModel.GetByPostID(id, userID)
 	if err != nil {
+		log.Printf("PostView: Failed to retrieve comments: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve comments for the post.")
 		return
 	}
 
 	post.Likes, post.Dislikes, err = postModel.GetLikesAndDislikes(post.ID)
 	if err != nil {
+		log.Printf("PostView: Failed to retrieve likes and dislikes: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve likes and dislikes for the post.")
 		return
 	}
-
 	if userID > 0 {
 		post.UserVote, _ = postModel.GetUserVote(post.ID, userID)
 	}
@@ -103,6 +91,7 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
         JOIN post_categories pc ON c.id = pc.category_id
         WHERE pc.post_id = ?`, post.ID)
 	if err != nil {
+		log.Printf("PostView: Failed to retrieve categories: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to retrieve categories for the post.")
 		return
 	}
@@ -112,12 +101,12 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	for rows.Next() {
 		var category string
 		if err := rows.Scan(&category); err != nil {
-			RenderError(w, http.StatusInternalServerError, "Failed to retrieve category for the post.")
+			log.Printf("PostView: Failed to scan category: %v", err)
+			RenderError(w, http.StatusInternalServerError, "Failed to retrieve categories for the post.")
 			return
 		}
 		categories = append(categories, category)
 	}
-
 	post.Categories = categories
 
 	data := struct {
@@ -133,7 +122,7 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		Post:             post,
 		Comments:         comments,
 		LoggedIn:         userID > 0,
-		Username:         post.Username,
+		Username:         loggedInUsername,
 		ActiveCategoryID: 0,
 		FilterMyPosts:    false,
 		FilterLikedPosts: false,
@@ -150,12 +139,13 @@ func PostView(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	ts, err := template.New("view.html").ParseFiles(files...)
 	if err != nil {
+		log.Printf("PostView: Failed to load templates: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to load templates for the post view.")
 		return
 	}
 
-	err = ts.Execute(w, data)
-	if err != nil {
+	if err := ts.Execute(w, data); err != nil {
+		log.Printf("PostView: Failed to render template: %v", err)
 		RenderError(w, http.StatusInternalServerError, "Failed to render the post view.")
 	}
 }
